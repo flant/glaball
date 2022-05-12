@@ -1,0 +1,22 @@
+# cache:
+#   enabled: true
+#   size: 100MB
+#   compression: true
+#   ttl: 24h
+
+# rate_limiter:
+#   enabled: false
+
+# filter: ".*"
+
+# threads: 100
+
+hosts:
+  main:
+    example-project:
+      primary:
+        url: https://gitlab-primary.example.com
+        token: api_token
+      # secondary:
+      #   url: https://gitlab-secondary.example.com
+      #   token: api_token
