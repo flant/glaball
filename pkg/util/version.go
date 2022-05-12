@@ -70,3 +70,7 @@ func VersionInfo() string {
 func BuildContext() string {
 	return fmt.Sprintf("(go=%s, user=%s, date=%s)", GoVersion, BuildUser, BuildDate)
 }
+
+func VersionString() string {
+	return fmt.Sprintf("(version=%s, branch=%s, revision=%s, go=%s, user=%s, date=%s)", Version, Branch, Revision, GoVersion, BuildUser, BuildDate)
+}

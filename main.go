@@ -30,7 +30,7 @@ var (
 		Long:          ``,
 		SilenceErrors: false,
 		SilenceUsage:  true,
-		Version:       util.VersionInfo(),
+		Version:       util.VersionString(),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := setLogLevel(logLevel); err != nil {
 				return err
