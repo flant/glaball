@@ -19,6 +19,6 @@ RUN apt-get update && apt-get install -qy --no-install-recommends \
 
 COPY --from=builder /src/build/gitlaball /usr/local/bin/gitlaball
 
-RUN /usr/local/bin/gitlaball completion bash >> /etc/bash_completion
+RUN /usr/local/bin/gitlaball completion bash > /usr/share/bash-completion/completions/gitlaball
 
 CMD [ "/usr/local/bin/gitlaball" ]
