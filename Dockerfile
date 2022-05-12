@@ -18,6 +18,6 @@ RUN DEBIAN_FRONTEND=noninteractive; apt-get update \
 
 COPY --from=builder /src/build/gitlaball /usr/local/bin/gitlaball
 
-RUN mkdir -p /etc/bash_completion.d; /usr/local/bin/gitlaball completion bash > /etc/bash_completion.d/gitlaball
+RUN /usr/local/bin/gitlaball completion bash >> /etc/bash_completion
 
 CMD [ "/usr/local/bin/gitlaball" ]
