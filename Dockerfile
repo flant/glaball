@@ -14,8 +14,6 @@ FROM debian:buster-slim
 RUN DEBIAN_FRONTEND=noninteractive; apt-get update \
     && apt-get install -qy --no-install-recommends \
         ca-certificates \
-        tzdata \
-        curl \
         bash-completion
 
 COPY --from=builder /src/build/gitlaball /usr/local/bin/gitlaball
