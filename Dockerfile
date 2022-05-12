@@ -15,8 +15,11 @@ RUN DEBIAN_FRONTEND=noninteractive; apt-get update \
     && apt-get install -qy --no-install-recommends \
         ca-certificates \
         tzdata \
-        curl
+        curl \
+        bash-completion
 
 COPY --from=builder /src/build/gitlaball /usr/local/bin/gitlaball
 
-CMD [ "/gitlaball" ]
+RUN /usr/local/bin/gitlaball completion bash > /etc/bash_completion.d/gitlaball
+
+CMD [ "/usr/local/bin/gitlaball" ]
