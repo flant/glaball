@@ -1,3 +1,6 @@
+[![Go](https://github.com/flant/gitlaball/actions/workflows/go.yml/badge.svg)](https://github.com/flant/gitlaball/actions/workflows/go.yml)
+[![Docker Image](https://github.com/flant/gitlaball/actions/workflows/docker.yml/badge.svg)](https://github.com/flant/gitlaball/actions/workflows/docker.yml)
+
 # Утилита для администрирования self-hosted Gitlab инстансов
 
 Скачать собранный бинарный файл можно на странице релизов https://github.com/flant/github.com/flant/gitlaball/releases
