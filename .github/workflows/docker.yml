@@ -45,12 +45,12 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        build-args:
-        - version=${{ github.ref_name }}
-        - revision=${{ github.sha }}
-        - branch=${{ github.ref_name }}
-        - build_user=${{ github.actor }}
-        - build_date=$(date +%Y%m%d%H%M)
+        build-args: |
+          version=${{ github.ref_name }}
+          revision=${{ github.sha }}
+          branch=${{ github.ref_name }}
+          build_user=${{ github.actor }}
+          build_date=$(date +%Y%m%d%H%M)
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
