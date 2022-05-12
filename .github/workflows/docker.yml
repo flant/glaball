@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Docker meta
       id: meta
@@ -40,12 +40,15 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Set build date
+      run: echo "BUILD_DATE=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+
     - name: Build and push
       uses: docker/build-push-action@v3
       with:
         context: .
         build-args: |
-          versionflags=-X 'github.com/flant/gitlaball/pkg/util.Version=${{ github.ref_name }}' -X 'github.com/flant/gitlaball/pkg/util.Revision=${{ github.sha }}' -X 'github.com/flant/gitlaball/pkg/util.Branch=${{ github.ref_name }}' -X 'github.com/flant/gitlaball/pkg/util.BuildUser=${{ github.actor }}' -X 'github.com/flant/gitlaball/pkg/util.BuildDate=$(date +%Y%m%d%H%M)'
+          versionflags=-X 'github.com/flant/gitlaball/pkg/util.Version=${{ github.ref_name }}' -X 'github.com/flant/gitlaball/pkg/util.Revision=${{ github.sha }}' -X 'github.com/flant/gitlaball/pkg/util.Branch=${{ github.ref_name }}' -X 'github.com/flant/gitlaball/pkg/util.BuildUser=${{ github.actor }}' -X 'github.com/flant/gitlaball/pkg/util.BuildDate=${{ env.BUILD_DATE }}'
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
