@@ -1,10 +1,6 @@
 FROM golang:1.17-buster as builder
 
-ARG VERSION
-ARG REVISION
-ARG BRANCH
-ARG BUILD_USER
-ARG BUILD_DATE
+ARG versionflags
 
 WORKDIR /src
 
