@@ -10,7 +10,6 @@ on:
 jobs:
 
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -46,11 +45,11 @@ jobs:
       with:
         context: .
         build-args: |
-          version=${{ github.ref_name }}
-          revision=${{ github.sha }}
-          branch=${{ github.ref_name }}
-          build_user=${{ github.actor }}
-          build_date=$(date +%Y%m%d%H%M)
+          VERSION=${{ github.ref_name }}
+          REVISION=${{ github.sha }}
+          BRANCH=${{ github.ref_name }}
+          BUILD_USER=${{ github.actor }}
+          BUILD_DATE=$(date +%Y%m%d%H%M)
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

@@ -21,6 +21,6 @@ RUN DEBIAN_FRONTEND=noninteractive; apt-get update \
         tzdata \
         curl
 
-COPY --from=builder /src/build/gitlaball /gitlaball
+COPY --from=builder /src/build/gitlaball /usr/local/bin/gitlaball
 
 CMD [ "/gitlaball" ]
