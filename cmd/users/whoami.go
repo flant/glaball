@@ -5,10 +5,11 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/pkg/client"
 	"github.com/flant/gitlaball/pkg/limiter"
 	"github.com/flant/gitlaball/pkg/sort"
+
+	"github.com/flant/gitlaball/cmd/common"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -29,17 +30,12 @@ func NewWhoamiCmd() *cobra.Command {
 }
 
 func Whoami() error {
-	cli, err := common.Client()
-	if err != nil {
-		return err
-	}
-
-	wg := cli.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
-	for _, h := range cli.Hosts {
+	for _, h := range common.Client.Hosts {
 		fmt.Printf("Getting current user info from %s ...\n", h.URL)
 		wg.Add(1)
-		go currentUser(h, wg, data, cli.WithNoCache())
+		go currentUser(h, wg, data, common.Client.WithNoCache())
 	}
 
 	go func() {
@@ -68,7 +64,7 @@ func Whoami() error {
 	w.Flush()
 
 	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Error())
+		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil
@@ -80,7 +76,7 @@ func currentUser(h *client.Host, wg *limiter.Limiter, data chan<- interface{}, o
 	wg.Lock()
 	user, resp, err := h.Client.Users.CurrentUser(options...)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}

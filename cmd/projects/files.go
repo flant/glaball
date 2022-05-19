@@ -6,10 +6,11 @@ import (
 	"regexp"
 	"text/tabwriter"
 
-	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/pkg/client"
 	"github.com/flant/gitlaball/pkg/limiter"
 	"github.com/flant/gitlaball/pkg/sort"
+
+	"github.com/flant/gitlaball/cmd/common"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -22,7 +23,7 @@ var (
 	filepaths []string
 	patterns  []string
 
-	ref string
+	gitRef string
 )
 
 func NewFilesCmd() *cobra.Command {
@@ -50,7 +51,7 @@ func NewSearchCmd() *cobra.Command {
 	cmd.MarkFlagRequired("filepath")
 
 	cmd.Flags().StringSliceVar(&patterns, "pattern", []string{".*"}, "List of regex patterns to search in files")
-	cmd.Flags().StringVar(&ref, "ref", "master", "Git branch to search file in")
+	cmd.Flags().StringVar(&gitRef, "ref", "", "Git branch to search file in. Default branch if no value provided")
 
 	// ListProjectsOptions
 	listProjectsOptionsFlags(cmd, &listProjectsFilesOptions)
@@ -59,11 +60,6 @@ func NewSearchCmd() *cobra.Command {
 }
 
 func Search() error {
-	cli, err := common.Client()
-	if err != nil {
-		return err
-	}
-
 	re := make([]*regexp.Regexp, 0, len(patterns))
 	for _, p := range patterns {
 		r, err := regexp.Compile(p)
@@ -73,15 +69,15 @@ func Search() error {
 		re = append(re, r)
 	}
 
-	wg := cli.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
 
-	for _, h := range cli.Hosts {
+	for _, h := range common.Client.Hosts {
 		fmt.Printf("Searching for files in %s ...\n", h.URL)
 		// TODO: context with cancel
 		for _, fp := range filepaths {
 			wg.Add(1)
-			go listProjectsFiles(h, fp, ref, re, listProjectsFilesOptions, wg, data, cli.WithCache())
+			go listProjectsFiles(h, fp, gitRef, re, listProjectsFilesOptions, wg, data, common.Client.WithCache())
 		}
 	}
 
@@ -110,7 +106,7 @@ func Search() error {
 	fmt.Fprintf(w, "Unique: %d\nTotal: %d\nErrors: %d\n", unique, total, len(wg.Errors()))
 
 	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Error())
+		hclog.L().Error(err.Err.Error())
 	}
 
 	w.Flush()
@@ -119,13 +115,8 @@ func Search() error {
 }
 
 func SearchRegexp() error {
-	cli, err := common.Client()
-	if err != nil {
-		return err
-	}
-
 	// do not allow to list project's tree for more than 1 host
-	if len(cli.Hosts) > 1 {
+	if len(common.Client.Hosts) > 1 {
 		return fmt.Errorf("you don't want to use it as bulk function")
 	}
 
@@ -138,13 +129,13 @@ func SearchRegexp() error {
 		re = append(re, r)
 	}
 
-	wg := cli.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
 
-	for _, h := range cli.Hosts {
+	for _, h := range common.Client.Hosts {
 		fmt.Printf("Searching for files in %s ...\n", h.URL)
 		wg.Add(1)
-		go listProjectsFilesRegexp(h, re, listProjectsFilesOptions, wg, data, cli.WithCache())
+		go listProjectsFilesRegexp(h, gitRef, re, listProjectsFilesOptions, wg, data, common.Client.WithCache())
 	}
 
 	go func() {
@@ -174,7 +165,7 @@ func SearchRegexp() error {
 	w.Flush()
 
 	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Error())
+		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil
@@ -188,7 +179,7 @@ func listProjectsFiles(h *client.Host, filepath, ref string, re []*regexp.Regexp
 	wg.Lock()
 	list, resp, err := h.Client.Projects.ListProjects(&opt, options...)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}
@@ -196,7 +187,11 @@ func listProjectsFiles(h *client.Host, filepath, ref string, re []*regexp.Regexp
 
 	for _, v := range list {
 		wg.Add(1)
-		go getRawFile(h, v, filepath, ref, re, gitlab.GetRawFileOptions{Ref: &ref}, wg, data, options...)
+		targetRef := ref
+		if ref == "" {
+			targetRef = v.DefaultBranch
+		}
+		go getRawFile(h, v, filepath, ref, re, gitlab.GetRawFileOptions{Ref: &targetRef}, wg, data, options...)
 	}
 
 	if resp.NextPage > 0 {
@@ -214,6 +209,7 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 	wg.Lock()
 	raw, resp, err := h.Client.RepositoryFiles.GetRawFile(project.ID, filepath, &opt, options...)
 	if err != nil {
+		hclog.L().Trace("get raw file error", "project", project.WebURL, "error", err)
 		wg.Unlock()
 		return
 	}
@@ -222,13 +218,15 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 	for _, r := range re {
 		if r.Match(raw) {
 			data <- sort.Element{Host: h, Struct: project, Cached: resp.Header.Get("X-From-Cache") == "1"}
+			hclog.L().Trace("search pattern was found in file", "team", h.Team, "project", h.Project, "host", h.URL,
+				"repo", project.WebURL, "file", filepath, "pattern", r.String(), "content", hclog.Fmt("%s", raw))
 			return
 		}
 	}
 
 }
 
-func listProjectsFilesRegexp(h *client.Host, re []*regexp.Regexp, opt gitlab.ListProjectsOptions,
+func listProjectsFilesRegexp(h *client.Host, ref string, re []*regexp.Regexp, opt gitlab.ListProjectsOptions,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 
 	defer wg.Done()
@@ -236,7 +234,7 @@ func listProjectsFilesRegexp(h *client.Host, re []*regexp.Regexp, opt gitlab.Lis
 	wg.Lock()
 	list, resp, err := h.Client.Projects.ListProjects(&opt, options...)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}
@@ -245,17 +243,18 @@ func listProjectsFilesRegexp(h *client.Host, re []*regexp.Regexp, opt gitlab.Lis
 	for _, v := range list {
 		// context
 		wg.Add(1)
-		go listTree(h, v, re, gitlab.ListTreeOptions{
-			ListOptions: opt.ListOptions,
-			Ref:         &ref,
-			Recursive:   gitlab.Bool(true),
-		}, wg, data, options...)
+		targetRef := ref
+		if ref == "" {
+			targetRef = v.DefaultBranch
+		}
+		go listTree(h, v, re, gitlab.ListTreeOptions{ListOptions: opt.ListOptions, Ref: &targetRef, Recursive: gitlab.Bool(true)},
+			wg, data, options...)
 	}
 
 	if resp.NextPage > 0 {
 		wg.Add(1)
 		opt.Page = resp.NextPage
-		go listProjectsFilesRegexp(h, re, opt, wg, data, options...)
+		go listProjectsFilesRegexp(h, ref, re, opt, wg, data, options...)
 	}
 }
 
@@ -300,7 +299,7 @@ func rawBlobContent(h *client.Host, project *gitlab.Project, re []*regexp.Regexp
 	wg.Lock()
 	raw, resp, err := h.Client.Repositories.RawBlobContent(project.ID, sha, options...)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}
@@ -309,7 +308,13 @@ func rawBlobContent(h *client.Host, project *gitlab.Project, re []*regexp.Regexp
 	for _, r := range re {
 		if r.Match(raw) {
 			data <- sort.Element{Host: h, Struct: project, Cached: resp.Header.Get("X-From-Cache") == "1"}
+			return
 		}
 	}
 
+}
+
+func ListProjectsFiles(h *client.Host, filepath, ref string, re []*regexp.Regexp, opt gitlab.ListProjectsOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
+	listProjectsFiles(h, filepath, ref, re, opt, wg, data, options...)
 }

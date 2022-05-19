@@ -6,7 +6,6 @@ import (
 	"github.com/flant/gitlaball/pkg/client"
 
 	"github.com/ahmetb/go-linq"
-	"github.com/hashicorp/go-hclog"
 )
 
 var (
@@ -110,9 +109,6 @@ func FromChannelQuery(ch chan interface{}, opt *Options) linq.Query {
 		}
 	}
 
-	hclog.L().Debug("Group by", "index", groupBy)
-	hclog.L().Debug("Order by", "index", first)
-
 	switch o := opt; {
 	case o.GroupBy != "" && o.OrderBy[0] == "count":
 		orderedQuery = query.OrderBy(ByLen())                 // Order by count first if it is declared
@@ -127,7 +123,6 @@ func FromChannelQuery(ch chan interface{}, opt *Options) linq.Query {
 		if v, ok := t.Get(key); ok {
 			idx = v.(FieldIndex)
 		}
-		hclog.L().Debug("Then order by", "index", idx)
 		orderedQuery = orderedQuery.ThenByDescending(OrderBy(groupBy, idx))
 	}
 

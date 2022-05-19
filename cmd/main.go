@@ -4,13 +4,16 @@ import (
 	"os"
 	"time"
 
+	gconfig "github.com/flant/gitlaball/pkg/config"
+	"github.com/flant/gitlaball/pkg/limiter"
+
 	"github.com/flant/gitlaball/cmd/cache"
+	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/cmd/config"
+	"github.com/flant/gitlaball/cmd/info"
 	"github.com/flant/gitlaball/cmd/projects"
 	"github.com/flant/gitlaball/cmd/users"
 	"github.com/flant/gitlaball/cmd/versions"
-	gconfig "github.com/flant/gitlaball/pkg/config"
-	"github.com/flant/gitlaball/pkg/limiter"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -22,6 +25,7 @@ var (
 
 	logLevel string // "debug", "info", "warn", "error", "off"
 	update   bool
+	verbose  bool
 
 	rootCmd = &cobra.Command{
 		Use:           "gitlaball",
@@ -30,12 +34,20 @@ var (
 		SilenceErrors: false,
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if verbose {
+				logLevel = "debug"
+			}
+
 			if err := setLogLevel(logLevel); err != nil {
 				return err
 			}
 
 			if update {
 				viper.Set("cache.ttl", time.Duration(0))
+			}
+
+			if err := common.Init(); err != nil {
+				return err
 			}
 
 			return nil
@@ -76,9 +88,12 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&update, "update", "u", false, "Refresh cache")
 
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
+
 	rootCmd.AddCommand(
 		cache.NewCmd(),
 		config.NewCmd(),
+		info.NewCmd(),
 		projects.NewCmd(),
 		users.NewCmd(),
 		users.NewWhoamiCmd(),

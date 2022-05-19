@@ -5,11 +5,12 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/pkg/client"
 	"github.com/flant/gitlaball/pkg/limiter"
 	"github.com/flant/gitlaball/pkg/sort"
 	"github.com/flant/gitlaball/pkg/util"
+
+	"github.com/flant/gitlaball/cmd/common"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -113,19 +114,14 @@ Available in GitLab Premium self-managed, GitLab Premium SaaS, and higher tiers.
 }
 
 func List() error {
-	cl, err := common.Client()
-	if err != nil {
-		return err
-	}
-
-	wg := cl.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
 
-	for _, h := range cl.Hosts {
+	for _, h := range common.Client.Hosts {
 		fmt.Printf("Fetching projects from %s ...\n", h.URL)
 		// TODO: context with cancel
 		wg.Add(1)
-		go listProjects(h, listProjectsOptions, wg, data, cl.WithCache())
+		go listProjects(h, listProjectsOptions, wg, data, common.Client.WithCache())
 	}
 
 	go func() {
@@ -155,7 +151,7 @@ func List() error {
 	w.Flush()
 
 	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Error())
+		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil
@@ -170,7 +166,7 @@ func listProjects(h *client.Host, opt gitlab.ListProjectsOptions, wg *limiter.Li
 
 	list, resp, err := h.Client.Projects.ListProjects(&opt, options...)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return err
 	}

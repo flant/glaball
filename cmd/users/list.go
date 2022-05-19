@@ -5,11 +5,12 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/pkg/client"
 	"github.com/flant/gitlaball/pkg/limiter"
 	"github.com/flant/gitlaball/pkg/sort"
 	"github.com/flant/gitlaball/pkg/util"
+
+	"github.com/flant/gitlaball/cmd/common"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -101,18 +102,13 @@ The list of billable users is the total number of users minus the blocked users.
 }
 
 func List() error {
-	cli, err := common.Client()
-	if err != nil {
-		return err
-	}
-
-	wg := cli.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
 
-	for _, h := range cli.Hosts {
+	for _, h := range common.Client.Hosts {
 		fmt.Printf("Fetching users from %s ...\n", h.URL)
 		wg.Add(1)
-		go listUsers(h, listUsersOptions, wg, data, cli.WithCache())
+		go listUsers(h, listUsersOptions, wg, data, common.Client.WithCache())
 	}
 
 	go func() {
@@ -147,7 +143,7 @@ func List() error {
 	w.Flush()
 
 	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Error())
+		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil
@@ -162,7 +158,7 @@ func listUsers(h *client.Host, opt gitlab.ListUsersOptions,
 	wg.Lock()
 	list, resp, err := h.Client.Users.ListUsers(&opt, options...)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}
@@ -187,7 +183,7 @@ func listUsersSearch(h *client.Host, key, value string, opt gitlab.ListUsersOpti
 	wg.Lock()
 	list, resp, err := h.Client.Users.ListUsers(&opt, options...)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}

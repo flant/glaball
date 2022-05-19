@@ -2,6 +2,8 @@ package limiter
 
 import (
 	"sync"
+
+	"github.com/flant/gitlaball/pkg/client"
 )
 
 const (
@@ -9,10 +11,15 @@ const (
 	DefaultLimit = 100
 )
 
+type Error struct {
+	Host *client.Host
+	Err  error
+}
+
 type Limiter struct {
 	wg   sync.WaitGroup
 	mu   sync.Mutex
-	errs []error
+	errs []Error
 
 	sem chan struct{}
 }
@@ -22,13 +29,13 @@ func NewLimiter(limit int) *Limiter {
 	return &w
 }
 
-func (l *Limiter) Error(err error) {
+func (l *Limiter) Error(host *client.Host, err error) {
 	l.mu.Lock()
-	l.errs = append(l.errs, err)
+	l.errs = append(l.errs, Error{host, err})
 	l.mu.Unlock()
 }
 
-func (l *Limiter) Errors() []error {
+func (l *Limiter) Errors() []Error {
 	return l.errs
 }
 

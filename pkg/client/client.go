@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/flant/gitlaball/pkg/config"
-	"github.com/flant/gitlaball/pkg/limiter"
 
 	"github.com/ahmetb/go-linq"
 	"github.com/hashicorp/go-hclog"
@@ -151,10 +150,6 @@ func (c *Client) WithNoCache() gitlab.RequestOptionFunc {
 		r.Header.Set("etag", "W/\"00000000000000000000000000000000-1\"")
 		return nil
 	}
-}
-
-func (c *Client) Limiter() *limiter.Limiter {
-	return limiter.NewLimiter(c.config.Threads)
 }
 
 // Used to avoid unnecessary noncached requests

@@ -5,11 +5,12 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/pkg/client"
 	"github.com/flant/gitlaball/pkg/limiter"
 	"github.com/flant/gitlaball/pkg/sort"
 	"github.com/flant/gitlaball/pkg/util"
+
+	"github.com/flant/gitlaball/cmd/common"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -66,22 +67,17 @@ func NewModifyCmd() *cobra.Command {
 }
 
 func Modify() error {
-	cli, err := common.Client()
-	if err != nil {
-		return err
-	}
-
-	wg := cli.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
 
 	fmt.Printf("Searching for user %q...\n", modifyFieldValue)
-	for _, h := range cli.Hosts {
+	for _, h := range common.Client.Hosts {
 		wg.Add(1)
 		go listUsersSearch(h, modifyBy, modifyFieldValue, gitlab.ListUsersOptions{
 			ListOptions: gitlab.ListOptions{
 				PerPage: 100,
 			},
-		}, wg, data, cli.WithNoCache())
+		}, wg, data, common.Client.WithNoCache())
 	}
 
 	go func() {
@@ -137,7 +133,7 @@ func Modify() error {
 	w.Flush()
 
 	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Error())
+		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil
@@ -152,7 +148,7 @@ func modifyUser(h *client.Host, id int, opt gitlab.ModifyUserOptions, wg *limite
 	wg.Lock()
 	user, resp, err := h.Client.Users.ModifyUser(id, &opt, options...)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}

@@ -5,9 +5,10 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/pkg/sort"
 	"github.com/flant/gitlaball/pkg/util"
+
+	"github.com/flant/gitlaball/cmd/common"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -38,22 +39,17 @@ func NewSearchCmd() *cobra.Command {
 }
 
 func Search() error {
-	cli, err := common.Client()
-	if err != nil {
-		return err
-	}
-
-	wg := cli.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
 
 	fmt.Printf("Searching for user %q...\n", searchFieldValue)
-	for _, h := range cli.Hosts {
+	for _, h := range common.Client.Hosts {
 		wg.Add(1)
 		go listUsersSearch(h, searchBy, searchFieldValue, gitlab.ListUsersOptions{
 			ListOptions: gitlab.ListOptions{
 				PerPage: 100,
 			},
-		}, wg, data, cli.WithCache())
+		}, wg, data, common.Client.WithCache())
 	}
 
 	go func() {
@@ -79,7 +75,7 @@ func Search() error {
 	w.Flush()
 
 	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Error())
+		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil

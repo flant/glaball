@@ -5,11 +5,12 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/pkg/client"
 	"github.com/flant/gitlaball/pkg/limiter"
 	"github.com/flant/gitlaball/pkg/sort"
 	"github.com/flant/gitlaball/pkg/util"
+
+	"github.com/flant/gitlaball/cmd/common"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -44,16 +45,11 @@ This returns a 204 No Content status code if the operation was successfully,
 }
 
 func Delete() error {
-	cli, err := common.Client()
-	if err != nil {
-		return err
-	}
-
-	wg := cli.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
 
 	fmt.Printf("Searching for user %q...\n", deleteFieldValue)
-	for _, h := range cli.Hosts {
+	for _, h := range common.Client.Hosts {
 		wg.Add(1)
 		go listUsersSearch(h, deleteBy, deleteFieldValue, gitlab.ListUsersOptions{
 			ListOptions: gitlab.ListOptions{
@@ -120,7 +116,7 @@ func Delete() error {
 	w.Flush()
 
 	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Error())
+		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil
@@ -135,7 +131,7 @@ func deleteUser(h *client.Host, user *gitlab.User, wg *limiter.Limiter, data cha
 	wg.Lock()
 	resp, err := h.Client.Users.DeleteUser(user.ID, options...)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}

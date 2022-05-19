@@ -9,10 +9,11 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/pkg/client"
 	"github.com/flant/gitlaball/pkg/limiter"
 	"github.com/flant/gitlaball/pkg/sort"
+
+	"github.com/flant/gitlaball/cmd/common"
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
@@ -48,17 +49,12 @@ func NewCmd() *cobra.Command {
 }
 
 func Versions() error {
-	cli, err := common.Client()
-	if err != nil {
-		return err
-	}
-
-	wg := cli.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
-	for _, h := range cli.Hosts {
+	for _, h := range common.Client.Hosts {
 		fmt.Printf("Getting current version info from %s ...\n", h.URL)
 		wg.Add(1)
-		go currentVersion(h, wg, data, cli.WithNoCache())
+		go currentVersion(h, wg, data, common.Client.WithNoCache())
 	}
 
 	go func() {
@@ -87,7 +83,7 @@ func Versions() error {
 	w.Flush()
 
 	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Error())
+		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil
@@ -99,13 +95,13 @@ func currentVersion(h *client.Host, wg *limiter.Limiter, data chan<- interface{}
 	wg.Lock()
 	version, resp, err := h.Client.Version.GetVersion()
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}
 	check, err := checkVersion(h, version)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}

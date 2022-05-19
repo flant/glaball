@@ -5,11 +5,12 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/pkg/client"
 	"github.com/flant/gitlaball/pkg/limiter"
 	"github.com/flant/gitlaball/pkg/sort"
 	"github.com/flant/gitlaball/pkg/util"
+
+	"github.com/flant/gitlaball/cmd/common"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -80,18 +81,13 @@ func Create() error {
 		return fmt.Errorf("--password, --reset_password, --force_random_password are missing, at least one parameter must be provided")
 	}
 
-	cli, err := common.Client()
-	if err != nil {
-		return err
-	}
-
 	util.AskUser(fmt.Sprintf("Do you really want to create user %q in %v ?",
-		*createOpt.Username, cli.Hosts.Projects()))
+		*createOpt.Username, common.Client.Hosts.Projects()))
 
-	wg := cli.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
 
-	for _, h := range cli.Hosts {
+	for _, h := range common.Client.Hosts {
 		wg.Add(1)
 		go createUser(h, createOpt, wg, data)
 	}
@@ -119,7 +115,7 @@ func Create() error {
 	w.Flush()
 
 	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Error())
+		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil
@@ -134,7 +130,7 @@ func createUser(h *client.Host, opt gitlab.CreateUserOptions, wg *limiter.Limite
 	wg.Lock()
 	user, resp, err := h.Client.Users.CreateUser(&opt, options...)
 	if err != nil {
-		wg.Error(err)
+		wg.Error(h, err)
 		wg.Unlock()
 		return
 	}

@@ -3,26 +3,30 @@ package common
 import (
 	"github.com/flant/gitlaball/pkg/client"
 	"github.com/flant/gitlaball/pkg/config"
+	"github.com/flant/gitlaball/pkg/limiter"
 
 	"github.com/spf13/viper"
 )
 
-func Client() (*client.Client, error) {
-	var cfg config.Config
+var (
+	Config  *config.Config
+	Client  *client.Client
+	Limiter *limiter.Limiter
+)
 
-	if err := viper.Unmarshal(&cfg); err != nil {
-		return nil, err
+func Init() (err error) {
+	var cfg config.Config
+	if err = viper.Unmarshal(&cfg); err != nil {
+		return err
 	}
 
-	return client.NewClient(&cfg)
-}
+	Config = &cfg
 
-func Config() (*config.Config, error) {
-	var cfg config.Config
-
-	if err := viper.Unmarshal(&cfg); err != nil {
-		return nil, err
+	if Client, err = client.NewClient(Config); err != nil {
+		return err
 	}
 
-	return &cfg, nil
+	Limiter = limiter.NewLimiter(Config.Threads)
+
+	return nil
 }

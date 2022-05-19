@@ -34,11 +34,7 @@ func NewCleanCmd() *cobra.Command {
 }
 
 func Clean() error {
-	cfg, err := common.Config()
-	if err != nil {
-		return err
-	}
-	diskv, err := cfg.Cache.Diskv()
+	diskv, err := common.Config.Cache.Diskv()
 	if err != nil {
 		return err
 	}

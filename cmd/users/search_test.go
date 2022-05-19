@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/flant/gitlaball/cmd/common"
 	"github.com/flant/gitlaball/pkg/sort"
+
+	"github.com/flant/gitlaball/cmd/common"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/xanzy/go-gitlab"
@@ -24,7 +25,7 @@ func TestSearch(t *testing.T) {
 		fmt.Fprint(w, TestData)
 	})
 
-	wg := cli.Limiter()
+	wg := common.Limiter
 	data := make(chan interface{})
 
 	searchBy := "username"
