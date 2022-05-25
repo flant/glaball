@@ -90,7 +90,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	}
 
 	if hclog.L().IsDebug() {
-		options = append(options, gitlab.WithCustomLeveledLogger(hclog.Default()))
+		options = append(options, gitlab.WithCustomLeveledLogger(hclog.Default().Named("go-gitlab")))
 	}
 
 	client := Client{config: cfg}

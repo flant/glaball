@@ -26,12 +26,12 @@ type CacheOptions struct {
 }
 
 func DefaultCacheDir() (string, error) {
-	cacheDir, err := os.UserCacheDir()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(cacheDir, "gitlaball"), nil
+	return filepath.Join(homeDir, ".cache", ApplicationName), nil
 }
 
 func (c *CacheOptions) DiskvOptions() (diskv.Options, error) {
@@ -81,8 +81,10 @@ func (c *CacheOptions) DiskCache() (*diskcache.Cache, error) {
 }
 
 func (c *CacheOptions) HttpCacheClient() (*http.Client, error) {
+	transport := cleanhttp.DefaultPooledTransport()
+
 	if !c.Enabled {
-		return cleanhttp.DefaultPooledClient(), nil
+		return &http.Client{Transport: transport}, nil
 	}
 
 	diskCache, err := c.DiskCache()
@@ -92,7 +94,7 @@ func (c *CacheOptions) HttpCacheClient() (*http.Client, error) {
 
 	return &http.Client{
 		Transport: &httpcache.Transport{
-			Transport:           cleanhttp.DefaultPooledTransport(),
+			Transport:           transport,
 			Cache:               diskCache,
 			MarkCachedResponses: true,
 		},

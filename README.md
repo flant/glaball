@@ -15,16 +15,14 @@ $ go build -v -o build/gitlaball *.go
 ## Конфигурация
 
 ```
-$ cat config.yaml
+$ cat ~/.config/gitlaball/config.yaml
 
 # Настройки кеша
 cache:
   # По умолчанию кеш http-запросов включен
   enabled: true
-  # По умолчанию кеш хранится в кеш директории пользователя, в зависимости от ОС
-  # https://pkg.go.dev/os?utm_source=gopls#UserCacheDir
-  # MacOS   : $HOME/Library/Caches/gitlaball
-  # Linux   : $HOME/.cache/gitlaball
+  # По умолчанию кеш хранится в кеш директории пользователя
+  # $HOME/.cache/gitlaball
   path: ""
   # По умолчанию размер кеша 100Мб
   size: 100MB
@@ -106,7 +104,7 @@ Total: 2
 
 ```
 $ gitlaball -h
-Bulk Gitlab instances administrator
+Gitlab bulk administration tool
 
 Usage:
   gitlaball [flags]
@@ -117,19 +115,21 @@ Available Commands:
   completion  Generate the autocompletion script for the specified shell
   config      Information about the current configuration
   help        Help about any command
+  info        Information about the current build
   projects    Projects API
   users       Users API
   versions    Retrieve version information for GitLab instances
   whoami      Current API user
 
 Flags:
-      --config string      Path to the configuration file. (default "config.yaml") (default "config.yaml")
+      --config string      Path to the configuration file. (default "$HOME/.config/gitlaball/config.yaml")
   -f, --filter string      Select Gitlab(s) by regexp filter (default ".*")
   -h, --help               help for gitlaball
       --log_level string   Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, off] (default "info")
       --threads int        Number of concurrent processes. (default: one process for each Gitlab instances in config file) (default 100)
       --ttl duration       Override cache TTL set in config file (default 24h0m0s)
   -u, --update             Refresh cache
+  -v, --verbose            Verbose output
 
 Use "gitlaball [command] --help" for more information about a command.
 ```

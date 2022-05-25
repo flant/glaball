@@ -94,6 +94,7 @@ func Search() error {
 	})
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+	fmt.Fprintf(w, "COUNT\tREPOSITORY\tHOSTS\tCACHED\n")
 	unique := 0
 	total := 0
 
@@ -151,6 +152,7 @@ func SearchRegexp() error {
 	})
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+	fmt.Fprintf(w, "COUNT\tREPOSITORY\tHOSTS\tCACHED\n")
 	unique := 0
 	total := 0
 
@@ -191,6 +193,7 @@ func listProjectsFiles(h *client.Host, filepath, ref string, re []*regexp.Regexp
 		if ref == "" {
 			targetRef = v.DefaultBranch
 		}
+		// TODO: handle deadlock when no files found
 		go getRawFile(h, v, filepath, ref, re, gitlab.GetRawFileOptions{Ref: &targetRef}, wg, data, options...)
 	}
 
@@ -209,7 +212,7 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 	wg.Lock()
 	raw, resp, err := h.Client.RepositoryFiles.GetRawFile(project.ID, filepath, &opt, options...)
 	if err != nil {
-		hclog.L().Trace("get raw file error", "project", project.WebURL, "error", err)
+		hclog.L().Named("files").Trace("get raw file error", "project", project.WebURL, "error", err)
 		wg.Unlock()
 		return
 	}
@@ -218,12 +221,11 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 	for _, r := range re {
 		if r.Match(raw) {
 			data <- sort.Element{Host: h, Struct: project, Cached: resp.Header.Get("X-From-Cache") == "1"}
-			hclog.L().Trace("search pattern was found in file", "team", h.Team, "project", h.Project, "host", h.URL,
+			hclog.L().Named("files").Trace("search pattern was found in file", "team", h.Team, "project", h.Project, "host", h.URL,
 				"repo", project.WebURL, "file", filepath, "pattern", r.String(), "content", hclog.Fmt("%s", raw))
 			return
 		}
 	}
-
 }
 
 func listProjectsFilesRegexp(h *client.Host, ref string, re []*regexp.Regexp, opt gitlab.ListProjectsOptions,

@@ -44,6 +44,7 @@ func Whoami() error {
 	}()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+	fmt.Fprintf(w, "COUNT\tUSER\tHOSTS\tCACHED\n")
 	total := 0
 
 	results := sort.FromChannel(data, &sort.Options{

@@ -137,6 +137,7 @@ func List() error {
 	})
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+	fmt.Fprintf(w, "COUNT\tREPOSITORY\tHOSTS\tCACHED\n")
 	unique := 0
 	total := 0
 

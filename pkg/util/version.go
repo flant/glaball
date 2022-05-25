@@ -23,7 +23,7 @@ import (
 
 // Build information. Populated at build-time.
 var (
-	Version   string = "0.0.1"
+	Version   string = "1.0.0"
 	Revision  string
 	Branch    string
 	BuildUser string

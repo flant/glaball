@@ -40,9 +40,9 @@ type Cached bool
 
 func (c Cached) String() string {
 	if c {
-		return "X"
+		return "yes"
 	}
-	return "O"
+	return "no"
 }
 
 type Elements []interface{}

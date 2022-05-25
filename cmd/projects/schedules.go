@@ -41,11 +41,6 @@ func NewPipelinesCmd() *cobra.Command {
 		NewPipelineCleanupSchedulesCmd(),
 	)
 
-	cmd.Flags().Var(util.NewBoolPtrValue(&active), "active",
-		"Filter pipeline schedules by state --active=[true|false]. Default nil.")
-	cmd.Flags().Var(util.NewEnumPtrValue(&status, "created", "waiting_for_resource", "preparing", "pending", "running", "success", "failed", "canceled", "skipped", "manual", "scheduled"), "status",
-		"Filter werf cleanup schedules by status --status=[created, waiting_for_resource, preparing, pending, running, success, failed, canceled, skipped, manual, scheduled]. Default nil.")
-
 	return cmd
 }
 
@@ -59,6 +54,10 @@ func NewPipelineSchedulesCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().Var(util.NewBoolPtrValue(&active), "active",
+		"Filter pipeline schedules by state --active=[true|false]. Default nil.")
+	cmd.Flags().Var(util.NewEnumPtrValue(&status, "created", "waiting_for_resource", "preparing", "pending", "running", "success", "failed", "canceled", "skipped", "manual", "scheduled"), "status",
+		"Filter werf cleanup schedules by status --status=[created, waiting_for_resource, preparing, pending, running, success, failed, canceled, skipped, manual, scheduled]. Default nil.")
 	cmd.Flags().StringSliceVar(&schedulesDescriptions, "description", []string{".*"},
 		"List of regex patterns to search in pipelines schedules descriptions")
 
@@ -78,6 +77,10 @@ func NewPipelineCleanupSchedulesCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().Var(util.NewBoolPtrValue(&active), "active",
+		"Filter pipeline schedules by state --active=[true|false]. Default nil.")
+	cmd.Flags().Var(util.NewEnumPtrValue(&status, "created", "waiting_for_resource", "preparing", "pending", "running", "success", "failed", "canceled", "skipped", "manual", "scheduled"), "status",
+		"Filter werf cleanup schedules by status --status=[created, waiting_for_resource, preparing, pending, running, success, failed, canceled, skipped, manual, scheduled]. Default nil.")
 	cmd.Flags().StringSliceVar(&cleanupFilepaths, "filepath", []string{"werf.yaml", "werf.yml"},
 		"List of project files to search for pattern")
 	cmd.Flags().StringVar(&gitRef, "ref", "", "Git branch to search file in. Default branch if no value provided")
@@ -126,6 +129,7 @@ func ListPipelineSchedulesCmd() error {
 	query.ToSlice(&results)
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+	fmt.Fprintf(w, "COUNT\tREPOSITORY\tSCHEDULES\tHOSTS\tCACHED\n")
 	unique := 0
 	total := 0
 
@@ -177,6 +181,9 @@ func ListPipelineCleanupSchedulesCmd() error {
 		desc = append(desc, r)
 	}
 
+	// only active projects
+	listProjectsPipelinesOptions.Archived = gitlab.Bool(false)
+
 	wg := common.Limiter
 	data := make(chan interface{})
 
@@ -207,7 +214,8 @@ func ListPipelineCleanupSchedulesCmd() error {
 	schedules := make(chan interface{})
 	for _, v := range toList.Typed() {
 		wg.Add(1)
-		go listPipelineSchedules(v.Host, v.Struct.(*gitlab.Project), gitlab.ListPipelineSchedulesOptions{PerPage: 100}, desc, wg, schedules, common.Client.WithCache())
+		go listPipelineSchedules(v.Host, v.Struct.(*gitlab.Project), gitlab.ListPipelineSchedulesOptions{PerPage: 100},
+			desc, wg, schedules, common.Client.WithCache())
 	}
 
 	go func() {
@@ -224,6 +232,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 	query.ToSlice(&results)
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+	fmt.Fprintf(w, "COUNT\tREPOSITORY\tSCHEDULES\tHOSTS\tCACHED\n")
 	unique := 0
 	total := 0
 
@@ -299,11 +308,12 @@ func listPipelineSchedules(h *client.Host, project *gitlab.Project, opt gitlab.L
 
 	// filter schedules by matching descriptions if any
 	filteredList := make([]*gitlab.PipelineSchedule, 0, len(list))
+filter:
 	for _, v := range list {
 		for _, p := range desc {
 			if p.MatchString(v.Description) {
 				filteredList = append(filteredList, v)
-				continue
+				continue filter
 			}
 		}
 	}

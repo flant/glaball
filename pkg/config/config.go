@@ -3,8 +3,13 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	ApplicationName = "gitlaball"
 )
 
 type Config struct {
@@ -24,6 +29,15 @@ type Host struct {
 
 type RateLimiterOptions struct {
 	Enabled bool `yaml:"enabled" mapstructure:"enabled"`
+}
+
+func DefaultConfigDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(homeDir, ".config", ApplicationName), nil
 }
 
 func FromFile(path string) (*Config, error) {

@@ -63,6 +63,7 @@ func Versions() error {
 	}()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+	fmt.Fprintf(w, "HOST\tURL\tVERSION\tSTATUS\n")
 	total := 0
 
 	results := sort.FromChannel(data, &sort.Options{

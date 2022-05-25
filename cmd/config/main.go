@@ -30,6 +30,7 @@ func NewListCmd() *cobra.Command {
 		Short: "List gitlabs stored in config",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+			fmt.Fprintf(w, "HOST\tURL\n")
 			total := 0
 
 			sort.Sort(common.Client.Hosts)
