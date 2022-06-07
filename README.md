@@ -1,74 +1,74 @@
 [![Go](https://github.com/flant/gitlaball/actions/workflows/go.yml/badge.svg)](https://github.com/flant/gitlaball/actions/workflows/go.yml)
 [![Docker Image](https://github.com/flant/gitlaball/actions/workflows/docker.yml/badge.svg)](https://github.com/flant/gitlaball/actions/workflows/docker.yml)
 
-# Утилита для администрирования self-hosted Gitlab инстансов
+# A tool for administering self-hosted GitLab instances
 
-Скачать собранный бинарный файл можно на странице релизов https://github.com/flant/github.com/flant/gitlaball/releases
+You can get the compiled binary from the release page at https://github.com/flant/github.com/flant/gitlaball/releases
 
-Сборка
+Building:
 ```
 $ git clone https://github.com/flant/gitlaball.git
 $ cd gitlaball
 $ go build -v -o build/gitlaball *.go
 ```
 
-## Конфигурация
+## Configuring
 
 ```
 $ cat ~/.config/gitlaball/config.yaml
 
-# Настройки кеша
+# Cache settings
 cache:
-  # По умолчанию кеш http-запросов включен
+  # HTTP request cache is enabled by default
   enabled: true
-  # По умолчанию кеш хранится в кеш директории пользователя
+  # The cache is stored in the user's cache directory by default
   # $HOME/.cache/gitlaball
   path: ""
-  # По умолчанию размер кеша 100Мб
+  # The default cache size is 100MB
   size: 100MB
-  # По умолчанию включено GZIP сжатие кеша
+  # GZIP cache compression is enabled by default
   compression: true
-  # По умолчанию кеш валиден в течение 1 суток
+  # By default, the cache is valid for 1 day
   ttl: 24h
 
-# По умолчанию операции выполняются со всеми хостами.
-# Можно использовать фильтр по команде/проекту в формате regexp (например, "main.*" или "main.example-project")
-# на уровне конфига или используя флаг --filter (-f)
+# By default, operations are performed for all hosts.
+# You can use a regexp command/project filter (e.g., "main.*" or "main.example-project")
+# at the config level or use the --filter flag (-f)
 filter: ".*"
 
-# Количество одновременных http подключений
+# The number of simultaneous HTTP connections
 threads: 100
 
-# Список хостов (обязательный параметр)
-# Итоговое имя проекта формируется как "<team>.<project>.<name>"
+# Host list (required)
+# The project name is generated as follows: "<team>.<project>.<name>"
 hosts:
-  # Команда (например main)
+  # The team (e.g., main)
   team:
-    # Имя проекта (например, example-project)
+    # The project name (e.g., example-project)
     project:
-      # Название гитлаба
+      # The GitLab name
       name:
-        # Ссылка на гитлаб проекта
+        # Link to the project's GitLab repo
         url: https://gitlab.example.com
-        # Токен юзера, от имени которого клиент будет ходить в API
-        # API token - полный доступ, включая создание/удаление юзеров
-        # Read API token - доступ только на чтение без возможности создавать/изменять пользователей, в том числе фильтровать список пользователей по email
+        # The user's token the client will use to connect to the API
+        # API token - provides full permissions, including user creation/deletion
+        # Read API token - provides read-only access without permissions to create/modify users or filtering the list of users by their email address
         token: <api|read_api token>
-        # Проверка превышения rate limit
-        # При использовании кеша - выключено по умолчанию, т.к. создает дополнительные некешируемые запросы.
-        # Имеет смысл включать только при включенном rate limit в гитлабе
+        # Rate limit check
+        # This one is disabled by default if a cache is used because it generates additional non-cacheable requests.
+        # It only makes sense to enable it if the rate limit in GitLab is enabled
         # https://docs.gitlab.com/ee/security/rate_limits.html
         rate_limit: false
 ```
 
-### Как добавить хост
-- Зайти в https://gitlab.example.com/-/profile/personal_access_tokens под своим пользователем
-- Создать **Personal Access Token** с названием `gitlaball` и со скоупом:
-  - `read_api` - если нужен доступ только на чтение
-  - `api` - если нужен полный доступ с возможностью создания пользователей и тп (при этом у пользователя должны быть права админа)
-- Добавить хост и токен в `config.yaml`, конфиг положить рядом с утилитой `gitlaball` (или указать путь к конфигу через `--config=path`)
+### How do I add a host?
+- Go to https://gitlab.example.com/-/profile/personal_access_tokens as a user;
+- Create a **Personal Access Token** named `gitlaball` with the following scope:
+  - `read_api` - if only read access is required;
+  - `api` - if full access is required. This one allows you to create users and so forth (note that the user must have the admin privileges);
+- Add your host and a token to the `config.yaml` file and copy it to the gitlaball directory (or specify the path to the config file via the `--config=path` parameter).
 
-Пример
+Example:
 ```
 hosts:
   main:
@@ -81,7 +81,7 @@ hosts:
         token: api_token
 ```
 
-Проверяем, что хост присутствует в конфиге
+Let's check that the host is in the config:
 ```
 $ gitlaball config list
 [main.example-project.secondary] https://gitlab-secondary.example.com
@@ -89,18 +89,18 @@ $ gitlaball config list
 Total: 2
 ```
 
-## Использование
+## Usage
 
-На данный момент реализованы следующие функции:
+Gitlaball currently supports the following features:
 
-* Создание/блокировка/удаление/изменение пользователей (`users [create|block|delete|modify]`)
-* Вывод списка пользователей, с возможностью сортировки/группировки/фильтрации (`users list`)
-* Поиск определенного пользователя (`users search`)
-* Вывод списка репозиториев, с возможностью сортировки/группировки/фильтрации (`projects list`)
-* Поиск заданий по расписанию в репозиториях, с возможностью фильтрации по состоянию активно/неактивно (`projects pipelines schedules`)
-* Поиск regex паттерна в указанных файлах в репозиториях (`projects files search`)
-* Вывод списка текущих версий гитлабов с информацией о необходимости обновления (up to date|update available|update asap)
-* Вывод информации о текущем пользователе API (`whoami`)
+* Creating/blocking/deleting/modifying users (`users [create|block|delete|modify]`)
+* Displaying a list of users with sorting/grouping/filtering options (`users list`)
+* Searching for a specific user (`users search`)
+* Displaying a list of repositories with sorting/grouping/filtering options (`projects list`)
+* Searching for scheduled jobs in repositories and filtering by active/inactive status (`projects pipelines schedules`)
+* Searching for the regex pattern in the specified files in the repositories (`projects files search`)
+* Displaying a list of current GitLab instance versions with information on whether an update is necessary (up to date|update available|update asap)
+* Displaying information about the current API user (`whoami`)
 
 ```
 $ gitlaball -h
@@ -145,16 +145,16 @@ Generate the autocompletion script for the bash shell.
 This script depends on the 'bash-completion' package.
 If it is not installed already, you can install it via your OS's package manager.
 
-To load completions in your current shell session:
+This command loads a list of completions in your current shell session:
 $ source <(gitlaball completion bash)
 
-To load completions for every new session, execute once:
+Run these to load completions for every new session:
 Linux:
   $ gitlaball completion bash > /etc/bash_completion.d/gitlaball
 MacOS:
   $ gitlaball completion bash > /usr/local/etc/bash_completion.d/gitlaball
 
-You will need to start a new shell for this setup to take effect.
+Start a new shell for this setup to take effect.
 ```
 
 #### Zsh
@@ -164,8 +164,8 @@ $ gitlaball completion zsh -h
 
 Generate the autocompletion script for the zsh shell.
 
-If shell completion is not already enabled in your environment you will need
-to enable it.  You can execute the following once:
+You will need to enable shell completion if is not yet enabled in your environment.
+To do this, run the following command:
 
 $ echo "autoload -U compinit; compinit" >> ~/.zshrc
 
@@ -178,77 +178,77 @@ $ gitlaball completion zsh > /usr/local/share/zsh/site-functions/_gitlaball
 You will need to start a new shell for this setup to take effect.
 ```
 
-## Примеры использования
+## Usage examples
 
-### Создание пользователя
-Пример создания нового пользователя в проектах команды main
+### Create a user
+Here is how you can create a new user in `main` team projects:
 
 ```
 $ gitlaball users create --filter "main.*" --email=test@test.com --username=test-gitlaball --name="test gitlaball" --password="qwerty"
 ```
 
-### Блокировка пользователя
+### Block a user
 ```
 $ gitlaball users block --by=username test-gitlaball
 ```
 
-Вывести только список проектов, в которых этот пользователь есть
+Display the list of projects in which this user exists:
 ```
 $ gitlaball users block --by=username test-gitlaball --hosts
 ```
 
-### Поиск контента в файлах
-*Можно искать по нескольким файлам сразу, но это увеличивает время поиска как минимум в 2 раза.*
+### Search for a pattern in the files:
+*You can search through several files at once, but that doubles the search time.*
 
-*Можно искать несколько паттернов, время это не увеличивает*
+*You can search for several patterns at once; it does not affect the search time.*
 
 ```
 $ gitlaball projects files search --filepath="werf.yaml,werf.yml" --pattern="mount"
 ```
 
-### Поиск запланированных пайплайнов
-Например, найти проекты с неактивными заданиями по расписанию
+### Search for scheduled pipelines
+The command below displays a list of projects with inactive scheduled pipelines:
 ```
 $ gitlaball -f "main.*" projects pipelines schedules --active=false
 ```
 
-### Поиск пользователя
+### Search for a user
 ```
 $ gitlaball users search --by=username docker
 ```
 
-### Список пользователей
-С группировкой по имени пользователя
+### List users
+Display the list of users grouped by the username:
 ```
 $ gitlaball users list --group_by=username
 ```
 
-Только пользователи, которые присутствуют в *n* проектах
+Show only those users who are active in *n* projects:
 ```
 $ gitlaball users list --group_by=username --count n
 ```
 
-Только администраторы
+Display the list of administrators:
 ```
 $ gitlaball users list --group_by=username --admins=true
 ```
 
-### Список хостов из конфига
+### Show the list of hosts specified in the config
 ```
 $ gitlaball config list
 ```
 
-### Очистка кеша
+### Clear the cache
 ```
 $ gitlaball cache clean
 ```
 
-### Список текущих версий
+### Show the list of current versions
 ```
 $ gitlaball versions
 ```
 
-### Вывод текущего пользователя
+### Show the active user
 ```
 $ gitlaball whoami
 ```
