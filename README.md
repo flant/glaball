@@ -1,18 +1,46 @@
 [![Go](https://github.com/flant/gitlaball/actions/workflows/go.yml/badge.svg)](https://github.com/flant/gitlaball/actions/workflows/go.yml)
 [![Docker Image](https://github.com/flant/gitlaball/actions/workflows/docker.yml/badge.svg)](https://github.com/flant/gitlaball/actions/workflows/docker.yml)
 
-# A tool for administering self-hosted GitLab instances
+Gitlaball is a CLI tool to manage multiple self-hosted GitLab instances at the same time.
 
-You can get the compiled binary from the release page at https://github.com/flant/github.com/flant/gitlaball/releases
+**Contents**:
+* [Features](#features)
+* [Installing](#installing)
+  * [Building](#building)
+  * [Configuring](#configuring)
+  * [How to add a GitLab host?](#how-to-add-a-gitlab-host)
+* [Usage](#usage)
+  * [Autocompletion](#autocompletion)
+  * [Usage examples](#usage-examples)
+* [Community](#community)
+* [License](#license)
 
-Building:
+## Features
+
+Gitlaball currently supports the following features:
+
+* Creating/blocking/deleting/modifying users (`users [create|block|delete|modify]`)
+* Displaying a list of users with sorting/grouping/filtering options (`users list`)
+* Searching for a specific user (`users search`)
+* Displaying a list of repositories with sorting/grouping/filtering options (`projects list`)
+* Searching for scheduled jobs in repositories and filtering by active/inactive status (`projects pipelines schedules`)
+* Searching for the regex pattern in the specified files in the repositories (`projects files search`)
+* Displaying a list of current GitLab instance versions with information on whether an update is necessary (up to date|update available|update asap)
+* Displaying information about the current API user (`whoami`)
+
+## Installing
+
+You can get the compiled binary at [the releases page](https://github.com/flant/gitlaball/releases).
+
+### Building
+
 ```
 $ git clone https://github.com/flant/gitlaball.git
 $ cd gitlaball
 $ go build -v -o build/gitlaball *.go
 ```
 
-## Configuring
+### Configuring
 
 ```
 $ cat ~/.config/gitlaball/config.yaml
@@ -61,7 +89,7 @@ hosts:
         rate_limit: false
 ```
 
-### How do I add a host?
+### How to add a GitLab host?
 - Go to https://gitlab.example.com/-/profile/personal_access_tokens as a user;
 - Create a **Personal Access Token** named `gitlaball` with the following scope:
   - `read_api` - if only read access is required;
@@ -90,17 +118,6 @@ Total: 2
 ```
 
 ## Usage
-
-Gitlaball currently supports the following features:
-
-* Creating/blocking/deleting/modifying users (`users [create|block|delete|modify]`)
-* Displaying a list of users with sorting/grouping/filtering options (`users list`)
-* Searching for a specific user (`users search`)
-* Displaying a list of repositories with sorting/grouping/filtering options (`projects list`)
-* Searching for scheduled jobs in repositories and filtering by active/inactive status (`projects pipelines schedules`)
-* Searching for the regex pattern in the specified files in the repositories (`projects files search`)
-* Displaying a list of current GitLab instance versions with information on whether an update is necessary (up to date|update available|update asap)
-* Displaying information about the current API user (`whoami`)
 
 ```
 $ gitlaball -h
@@ -145,16 +162,16 @@ Generate the autocompletion script for the bash shell.
 This script depends on the 'bash-completion' package.
 If it is not installed already, you can install it via your OS's package manager.
 
-This command loads a list of completions in your current shell session:
+To load completions in your current shell session:
 $ source <(gitlaball completion bash)
 
-Run these to load completions for every new session:
+To load completions for every new session, execute once:
 Linux:
   $ gitlaball completion bash > /etc/bash_completion.d/gitlaball
 MacOS:
   $ gitlaball completion bash > /usr/local/etc/bash_completion.d/gitlaball
 
-Start a new shell for this setup to take effect.
+You will need to start a new shell for this setup to take effect.
 ```
 
 #### Zsh
@@ -164,8 +181,8 @@ $ gitlaball completion zsh -h
 
 Generate the autocompletion script for the zsh shell.
 
-You will need to enable shell completion if is not yet enabled in your environment.
-To do this, run the following command:
+If shell completion is not already enabled in your environment you will need
+to enable it.  You can execute the following once:
 
 $ echo "autoload -U compinit; compinit" >> ~/.zshrc
 
@@ -197,8 +214,8 @@ Display the list of projects in which this user exists:
 $ gitlaball users block --by=username test-gitlaball --hosts
 ```
 
-### Search for a pattern in the files:
-*You can search through several files at once, but that doubles the search time.*
+### Search for a pattern in the files
+*You can search through several files at once, but that (at least) doubles the search time.*
 
 *You can search for several patterns at once; it does not affect the search time.*
 
@@ -252,3 +269,15 @@ $ gitlaball versions
 ```
 $ gitlaball whoami
 ```
+
+# Community
+
+Originally created in [Flant](https://flant.com/). 
+
+Please, feel free to reach developers/maintainers and users via [GitHub Discussions](https://github.com/flant/gitlaball/discussions) for any questions.
+
+You're welcome to follow [@flant_com](https://twitter.com/flant_com) to stay informed about all our Open Source initiatives.
+
+# License
+
+Apache License 2.0, see [LICENSE](LICENSE).
