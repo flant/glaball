@@ -9,6 +9,7 @@ Gitlaball is a CLI tool to manage multiple self-hosted GitLab instances at the s
   * [Building](#building)
   * [Configuring](#configuring)
   * [How to add a GitLab host?](#how-to-add-a-gitlab-host)
+  * [Important note on security](#important-note-on-security)
 * [Usage](#usage)
   * [Autocompletion](#autocompletion)
   * [Usage examples](#usage-examples)
@@ -116,6 +117,10 @@ $ gitlaball config list
 [main.example-project.primary]   https://gitlab-primary.example.com
 Total: 2
 ```
+
+### Important note on security
+
+Currently, all access tokens are simply stored in the gitlaball configuration file from where they can be used to access relevant GitLab instances. Remember to set appropriate permissions on your config, use `read_api` tokens only (if possible), and apply a strict expiry policy for your tokens.
 
 ## Usage
 
