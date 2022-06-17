@@ -3,7 +3,7 @@ package limiter
 import (
 	"sync"
 
-	"github.com/flant/gitlaball/pkg/client"
+	"github.com/flant/glaball/pkg/client"
 )
 
 const (

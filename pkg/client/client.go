@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/flant/gitlaball/pkg/config"
+	"github.com/flant/glaball/pkg/config"
 
 	"github.com/ahmetb/go-linq"
 	"github.com/hashicorp/go-hclog"

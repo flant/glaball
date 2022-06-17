@@ -1,9 +1,9 @@
 package common
 
 import (
-	"github.com/flant/gitlaball/pkg/client"
-	"github.com/flant/gitlaball/pkg/config"
-	"github.com/flant/gitlaball/pkg/limiter"
+	"github.com/flant/glaball/pkg/client"
+	"github.com/flant/glaball/pkg/config"
+	"github.com/flant/glaball/pkg/limiter"
 
 	"github.com/spf13/viper"
 )

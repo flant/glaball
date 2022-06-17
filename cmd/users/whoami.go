@@ -5,11 +5,11 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/flant/gitlaball/pkg/client"
-	"github.com/flant/gitlaball/pkg/limiter"
-	"github.com/flant/gitlaball/pkg/sort"
+	"github.com/flant/glaball/pkg/client"
+	"github.com/flant/glaball/pkg/limiter"
+	"github.com/flant/glaball/pkg/sort"
 
-	"github.com/flant/gitlaball/cmd/common"
+	"github.com/flant/glaball/cmd/common"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"

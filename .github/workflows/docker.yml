@@ -48,7 +48,7 @@ jobs:
       with:
         context: .
         build-args: |
-          versionflags=-X 'github.com/flant/gitlaball/pkg/util.Version=${{ github.ref_name }}' -X 'github.com/flant/gitlaball/pkg/util.Revision=${{ github.sha }}' -X 'github.com/flant/gitlaball/pkg/util.Branch=${{ github.ref_name }}' -X 'github.com/flant/gitlaball/pkg/util.BuildUser=${{ github.actor }}' -X 'github.com/flant/gitlaball/pkg/util.BuildDate=${{ env.BUILD_DATE }}'
+          versionflags=-X 'github.com/flant/glaball/pkg/util.Version=${{ github.ref_name }}' -X 'github.com/flant/glaball/pkg/util.Revision=${{ github.sha }}' -X 'github.com/flant/glaball/pkg/util.Branch=${{ github.ref_name }}' -X 'github.com/flant/glaball/pkg/util.BuildUser=${{ github.actor }}' -X 'github.com/flant/glaball/pkg/util.BuildDate=${{ env.BUILD_DATE }}'
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

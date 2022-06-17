@@ -20,12 +20,12 @@ jobs:
 
     - name: Build
       run: |
-        versionflags="-X 'github.com/flant/gitlaball/pkg/util.Version=$GITHUB_REF_NAME' -X 'github.com/flant/gitlaball/pkg/util.Revision=$GITHUB_SHA' -X 'github.com/flant/gitlaball/pkg/util.Branch=$GITHUB_REF_NAME' -X 'github.com/flant/gitlaball/pkg/util.BuildUser=$GITHUB_ACTOR' -X 'github.com/flant/gitlaball/pkg/util.BuildDate=$(date +%Y%m%d%H%M)'"
+        versionflags="-X 'github.com/flant/glaball/pkg/util.Version=$GITHUB_REF_NAME' -X 'github.com/flant/glaball/pkg/util.Revision=$GITHUB_SHA' -X 'github.com/flant/glaball/pkg/util.Branch=$GITHUB_REF_NAME' -X 'github.com/flant/glaball/pkg/util.BuildUser=$GITHUB_ACTOR' -X 'github.com/flant/glaball/pkg/util.BuildDate=$(date +%Y%m%d%H%M)'"
         for GOOS in darwin linux windows; do
           for GOARCH in amd64 arm64; do
             export GOOS GOARCH
-            CGO_ENABLED=0 go build -v -a -tags netgo -ldflags="-extldflags '-static' -s -w $versionflags" -o build/gitlaball-${GOOS}-${GOARCH} *.go
-            if [[ $GOOS == "windows" ]]; then mv build/gitlaball-${GOOS}-${GOARCH} build/gitlaball-${GOOS}-${GOARCH}.exe; fi
+            CGO_ENABLED=0 go build -v -a -tags netgo -ldflags="-extldflags '-static' -s -w $versionflags" -o build/glaball-${GOOS}-${GOARCH} *.go
+            if [[ $GOOS == "windows" ]]; then mv build/glaball-${GOOS}-${GOARCH} build/glaball-${GOOS}-${GOARCH}.exe; fi
           done
         done
         cd build; sha256sum * > sha256sums.txt

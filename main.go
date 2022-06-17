@@ -4,16 +4,16 @@ import (
 	"os"
 	"time"
 
-	gconfig "github.com/flant/gitlaball/pkg/config"
-	"github.com/flant/gitlaball/pkg/limiter"
+	gconfig "github.com/flant/glaball/pkg/config"
+	"github.com/flant/glaball/pkg/limiter"
 
-	"github.com/flant/gitlaball/cmd/cache"
-	"github.com/flant/gitlaball/cmd/common"
-	"github.com/flant/gitlaball/cmd/config"
-	"github.com/flant/gitlaball/cmd/info"
-	"github.com/flant/gitlaball/cmd/projects"
-	"github.com/flant/gitlaball/cmd/users"
-	"github.com/flant/gitlaball/cmd/versions"
+	"github.com/flant/glaball/cmd/cache"
+	"github.com/flant/glaball/cmd/common"
+	"github.com/flant/glaball/cmd/config"
+	"github.com/flant/glaball/cmd/info"
+	"github.com/flant/glaball/cmd/projects"
+	"github.com/flant/glaball/cmd/users"
+	"github.com/flant/glaball/cmd/versions"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -73,7 +73,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "",
-		"Path to the configuration file. (default \"$HOME/.config/gitlaball/config.yaml\")")
+		"Path to the configuration file. (default \"$HOME/.config/glaball/config.yaml\")")
 
 	rootCmd.PersistentFlags().Int("threads", limiter.DefaultLimit,
 		"Number of concurrent processes. (default: one process for each Gitlab instances in config file)")

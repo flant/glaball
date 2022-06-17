@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	ApplicationName = "gitlaball"
+	ApplicationName = "glaball"
 )
 
 type Config struct {

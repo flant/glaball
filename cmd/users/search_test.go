@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/flant/gitlaball/pkg/sort"
+	"github.com/flant/glaball/pkg/sort"
 
-	"github.com/flant/gitlaball/cmd/common"
+	"github.com/flant/glaball/cmd/common"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/xanzy/go-gitlab"
