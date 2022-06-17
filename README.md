@@ -1,7 +1,7 @@
-[![Go](https://github.com/flant/gitlaball/actions/workflows/go.yml/badge.svg)](https://github.com/flant/gitlaball/actions/workflows/go.yml)
-[![Docker Image](https://github.com/flant/gitlaball/actions/workflows/docker.yml/badge.svg)](https://github.com/flant/gitlaball/actions/workflows/docker.yml)
+[![Go](https://github.com/flant/glaball/actions/workflows/go.yml/badge.svg)](https://github.com/flant/glaball/actions/workflows/go.yml)
+[![Docker Image](https://github.com/flant/glaball/actions/workflows/docker.yml/badge.svg)](https://github.com/flant/glaball/actions/workflows/docker.yml)
 
-Gitlaball is a CLI tool to manage multiple self-hosted GitLab instances at the same time.
+Glaball is a CLI tool to manage multiple self-hosted GitLab instances at the same time.
 
 **Contents**:
 * [Features](#features)
@@ -18,7 +18,7 @@ Gitlaball is a CLI tool to manage multiple self-hosted GitLab instances at the s
 
 ## Features
 
-Gitlaball currently supports the following features:
+Glaball currently supports the following features:
 
 * Creating/blocking/deleting/modifying users (`users [create|block|delete|modify]`)
 * Displaying a list of users with sorting/grouping/filtering options (`users list`)
@@ -31,27 +31,27 @@ Gitlaball currently supports the following features:
 
 ## Installing
 
-You can get the compiled binary at [the releases page](https://github.com/flant/gitlaball/releases).
+You can get the compiled binary at [the releases page](https://github.com/flant/glaball/releases).
 
 ### Building
 
 ```
-$ git clone https://github.com/flant/gitlaball.git
-$ cd gitlaball
-$ go build -v -o build/gitlaball *.go
+$ git clone https://github.com/flant/glaball.git
+$ cd glaball
+$ go build -v -o build/glaball *.go
 ```
 
 ### Configuring
 
 ```
-$ cat ~/.config/gitlaball/config.yaml
+$ cat ~/.config/glaball/config.yaml
 
 # Cache settings
 cache:
   # HTTP request cache is enabled by default
   enabled: true
   # The cache is stored in the user's cache directory by default
-  # $HOME/.cache/gitlaball
+  # $HOME/.cache/glaball
   path: ""
   # The default cache size is 100MB
   size: 100MB
@@ -92,10 +92,10 @@ hosts:
 
 ### How to add a GitLab host?
 - Go to https://gitlab.example.com/-/profile/personal_access_tokens as a user;
-- Create a **Personal Access Token** named `gitlaball` with the following scope:
+- Create a **Personal Access Token** named `glaball` with the following scope:
   - `read_api` - if only read access is required;
   - `api` - if full access is required. This one allows you to create users and so forth (note that the user must have the admin privileges);
-- Add your host and a token to the `config.yaml` file and copy it to the gitlaball directory (or specify the path to the config file via the `--config=path` parameter).
+- Add your host and a token to the `config.yaml` file and copy it to the glaball directory (or specify the path to the config file via the `--config=path` parameter).
 
 Example:
 ```
@@ -112,7 +112,7 @@ hosts:
 
 Let's check that the host is in the config:
 ```
-$ gitlaball config list
+$ glaball config list
 [main.example-project.secondary] https://gitlab-secondary.example.com
 [main.example-project.primary]   https://gitlab-primary.example.com
 Total: 2
@@ -120,17 +120,17 @@ Total: 2
 
 ### Important note on security
 
-Currently, all access tokens are simply stored in the gitlaball configuration file from where they can be used to access relevant GitLab instances. Remember to set appropriate permissions on your config, use `read_api` tokens only (if possible), and apply a strict expiry policy for your tokens.
+Currently, all access tokens are simply stored in the glaball configuration file from where they can be used to access relevant GitLab instances. Remember to set appropriate permissions on your config, use `read_api` tokens only (if possible), and apply a strict expiry policy for your tokens.
 
 ## Usage
 
 ```
-$ gitlaball -h
+$ glaball -h
 Gitlab bulk administration tool
 
 Usage:
-  gitlaball [flags]
-  gitlaball [command]
+  glaball [flags]
+  glaball [command]
 
 Available Commands:
   cache       Cache management
@@ -144,23 +144,23 @@ Available Commands:
   whoami      Current API user
 
 Flags:
-      --config string      Path to the configuration file. (default "$HOME/.config/gitlaball/config.yaml")
+      --config string      Path to the configuration file. (default "$HOME/.config/glaball/config.yaml")
   -f, --filter string      Select Gitlab(s) by regexp filter (default ".*")
-  -h, --help               help for gitlaball
+  -h, --help               help for glaball
       --log_level string   Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, off] (default "info")
       --threads int        Number of concurrent processes. (default: one process for each Gitlab instances in config file) (default 100)
       --ttl duration       Override cache TTL set in config file (default 24h0m0s)
   -u, --update             Refresh cache
   -v, --verbose            Verbose output
 
-Use "gitlaball [command] --help" for more information about a command.
+Use "glaball [command] --help" for more information about a command.
 ```
 
 ### Autocompletion
 
 #### Bash
 ```
-$ gitlaball completion bash -h
+$ glaball completion bash -h
 
 Generate the autocompletion script for the bash shell.
 
@@ -168,13 +168,13 @@ This script depends on the 'bash-completion' package.
 If it is not installed already, you can install it via your OS's package manager.
 
 To load completions in your current shell session:
-$ source <(gitlaball completion bash)
+$ source <(glaball completion bash)
 
 To load completions for every new session, execute once:
 Linux:
-  $ gitlaball completion bash > /etc/bash_completion.d/gitlaball
+  $ glaball completion bash > /etc/bash_completion.d/glaball
 MacOS:
-  $ gitlaball completion bash > /usr/local/etc/bash_completion.d/gitlaball
+  $ glaball completion bash > /usr/local/etc/bash_completion.d/glaball
 
 You will need to start a new shell for this setup to take effect.
 ```
@@ -182,7 +182,7 @@ You will need to start a new shell for this setup to take effect.
 #### Zsh
 
 ```
-$ gitlaball completion zsh -h
+$ glaball completion zsh -h
 
 Generate the autocompletion script for the zsh shell.
 
@@ -193,9 +193,9 @@ $ echo "autoload -U compinit; compinit" >> ~/.zshrc
 
 To load completions for every new session, execute once:
 # Linux:
-$ gitlaball completion zsh > "${fpath[1]}/_gitlaball"
+$ glaball completion zsh > "${fpath[1]}/_glaball"
 # macOS:
-$ gitlaball completion zsh > /usr/local/share/zsh/site-functions/_gitlaball
+$ glaball completion zsh > /usr/local/share/zsh/site-functions/_glaball
 
 You will need to start a new shell for this setup to take effect.
 ```
@@ -206,17 +206,17 @@ You will need to start a new shell for this setup to take effect.
 Here is how you can create a new user in `main` team projects:
 
 ```
-$ gitlaball users create --filter "main.*" --email=test@test.com --username=test-gitlaball --name="test gitlaball" --password="qwerty"
+$ glaball users create --filter "main.*" --email=test@test.com --username=test-glaball --name="test glaball" --password="qwerty"
 ```
 
 ### Block a user
 ```
-$ gitlaball users block --by=username test-gitlaball
+$ glaball users block --by=username test-glaball
 ```
 
 Display the list of projects in which this user exists:
 ```
-$ gitlaball users block --by=username test-gitlaball --hosts
+$ glaball users block --by=username test-glaball --hosts
 ```
 
 ### Search for a pattern in the files
@@ -225,64 +225,66 @@ $ gitlaball users block --by=username test-gitlaball --hosts
 *You can search for several patterns at once; it does not affect the search time.*
 
 ```
-$ gitlaball projects files search --filepath="werf.yaml,werf.yml" --pattern="mount"
+$ glaball projects files search --filepath="werf.yaml,werf.yml" --pattern="mount"
 ```
 
 ### Search for scheduled pipelines
 The command below displays a list of projects with inactive scheduled pipelines:
 ```
-$ gitlaball -f "main.*" projects pipelines schedules --active=false
+$ glaball -f "main.*" projects pipelines schedules --active=false
 ```
 
 ### Search for a user
 ```
-$ gitlaball users search --by=username docker
+$ glaball users search --by=username docker
 ```
 
 ### List users
 Display the list of users grouped by the username:
 ```
-$ gitlaball users list --group_by=username
+$ glaball users list --group_by=username
 ```
 
 Show only those users who are active in *n* projects:
 ```
-$ gitlaball users list --group_by=username --count n
+$ glaball users list --group_by=username --count n
 ```
 
 Display the list of administrators:
 ```
-$ gitlaball users list --group_by=username --admins=true
+$ glaball users list --group_by=username --admins=true
 ```
 
 ### Show the list of hosts specified in the config
 ```
-$ gitlaball config list
+$ glaball config list
 ```
 
 ### Clear the cache
 ```
-$ gitlaball cache clean
+$ glaball cache clean
 ```
 
 ### Show the list of current versions
 ```
-$ gitlaball versions
+$ glaball versions
 ```
 
 ### Show the active user
 ```
-$ gitlaball whoami
+$ glaball whoami
 ```
 
 # Community
 
 Originally created in [Flant](https://flant.com/). 
 
-Please, feel free to reach developers/maintainers and users via [GitHub Discussions](https://github.com/flant/gitlaball/discussions) for any questions.
+Please, feel free to reach developers/maintainers and users via [GitHub Discussions](https://github.com/flant/glaball/discussions) for any questions.
 
 You're welcome to follow [@flant_com](https://twitter.com/flant_com) to stay informed about all our Open Source initiatives.
 
 # License
 
 Apache License 2.0, see [LICENSE](LICENSE).
+
+GITLAB, the GitLab logo and all other GitLab trademarks herein are the registered and unregistered trademarks of [GitLab, Inc.](https://about.gitlab.com/)
