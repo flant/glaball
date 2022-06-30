@@ -1,7 +1,7 @@
 [![Go](https://github.com/flant/glaball/actions/workflows/go.yml/badge.svg)](https://github.com/flant/glaball/actions/workflows/go.yml)
 [![Docker Image](https://github.com/flant/glaball/actions/workflows/docker.yml/badge.svg)](https://github.com/flant/glaball/actions/workflows/docker.yml)
 
-Glaball is a CLI tool to manage multiple self-hosted GitLab instances at the same time.
+Glaball is a CLI tool to manage multiple self-hosted GitLab instances at the same time. [This announcement](https://blog.flant.com/glaball-to-manage-gitlab-instances-in-bulk/) tells the story why it was created.
 
 **Contents**:
 * [Features](#features)
