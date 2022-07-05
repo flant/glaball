@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"testing"
 
 	"github.com/flant/glaball/pkg/sort"
@@ -29,7 +30,7 @@ func TestSearch(t *testing.T) {
 	data := make(chan interface{})
 
 	searchBy := "username"
-	searchFieldValue := "testuser2"
+	searchFieldValue := regexp.MustCompile("testuser2")
 
 	fmt.Printf("Searching for user %q...\n", searchFieldValue)
 	for _, h := range cli.Hosts {
@@ -100,13 +101,13 @@ func TestSearch(t *testing.T) {
 	expected := []sort.Result{
 		{
 			Count:    1,
-			Key:      searchFieldValue,
+			Key:      searchFieldValue.String(),
 			Elements: sort.Elements{sort.Element{Host: cli.Hosts[1], Struct: &user, Cached: false}},
 			Cached:   false,
 		},
 		{
 			Count:    1,
-			Key:      searchFieldValue,
+			Key:      searchFieldValue.String(),
 			Elements: sort.Elements{sort.Element{Host: cli.Hosts[0], Struct: &user, Cached: false}},
 			Cached:   false,
 		}}

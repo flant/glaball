@@ -3,6 +3,7 @@ package users
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"text/tabwriter"
 
 	"github.com/flant/glaball/pkg/client"
@@ -18,21 +19,25 @@ import (
 )
 
 var (
-	modifyOpt        = gitlab.ModifyUserOptions{}
-	modifyBy         string
-	modifyFieldValue string
+	modifyOpt         = gitlab.ModifyUserOptions{}
+	modifyBy          string
+	modifyFieldRegexp *regexp.Regexp
 
 	listHosts bool
 )
 
 func NewModifyCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "modify [by]",
+		Use:   "modify --by=[email|username|name] [regexp]",
 		Short: "Modifies an existing user",
 		Long:  "Modifies an existing user. Only administrators can change attributes of a user.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			modifyFieldValue = args[0]
+			re, err := regexp.Compile(args[0])
+			if err != nil {
+				return err
+			}
+			modifyFieldRegexp = re
 			return Modify()
 		},
 	}
@@ -70,10 +75,10 @@ func Modify() error {
 	wg := common.Limiter
 	data := make(chan interface{})
 
-	fmt.Printf("Searching for user %q...\n", modifyFieldValue)
+	fmt.Printf("Searching for user %q...\n", modifyFieldRegexp)
 	for _, h := range common.Client.Hosts {
 		wg.Add(1)
-		go listUsersSearch(h, modifyBy, modifyFieldValue, gitlab.ListUsersOptions{
+		go listUsersSearch(h, modifyBy, modifyFieldRegexp, gitlab.ListUsersOptions{
 			ListOptions: gitlab.ListOptions{
 				PerPage: 100,
 			},
@@ -91,7 +96,7 @@ func Modify() error {
 	}
 
 	if len(toModify) == 0 {
-		return fmt.Errorf("user not found: %s", modifyFieldValue)
+		return fmt.Errorf("user not found: %s", modifyFieldRegexp)
 	}
 
 	if listHosts {
@@ -101,8 +106,8 @@ func Modify() error {
 		return nil
 	}
 
-	util.AskUser(fmt.Sprintf("Do you really want to modify user %q in %d gitlab(s) %v ?",
-		modifyFieldValue, len(toModify.Hosts()), toModify.Hosts().Projects()))
+	util.AskUser(fmt.Sprintf("Do you really want to modify %d users %q in %d gitlab(s) %v ?",
+		len(toModify), modifyFieldRegexp, len(toModify.Hosts()), toModify.Hosts().Projects()))
 
 	modified := make(chan interface{})
 	for _, v := range toModify.Typed() {

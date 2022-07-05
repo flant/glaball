@@ -3,6 +3,7 @@ package users
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"text/tabwriter"
 
 	"github.com/flant/glaball/pkg/sort"
@@ -16,16 +17,21 @@ import (
 )
 
 var (
-	searchBy, searchFieldValue string
+	searchBy          string
+	searchFieldRegexp *regexp.Regexp
 )
 
 func NewSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "search [by]",
+		Use:   "search --by=[email|username|name] [regexp]",
 		Short: "Search for user",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			searchFieldValue = args[0]
+			re, err := regexp.Compile(args[0])
+			if err != nil {
+				return err
+			}
+			searchFieldRegexp = re
 			return Search()
 		},
 	}
@@ -42,10 +48,10 @@ func Search() error {
 	wg := common.Limiter
 	data := make(chan interface{})
 
-	fmt.Printf("Searching for user %q...\n", searchFieldValue)
+	fmt.Printf("Searching for user %s %q...\n", searchBy, searchFieldRegexp)
 	for _, h := range common.Client.Hosts {
 		wg.Add(1)
-		go listUsersSearch(h, searchBy, searchFieldValue, gitlab.ListUsersOptions{
+		go listUsersSearch(h, searchBy, searchFieldRegexp, gitlab.ListUsersOptions{
 			ListOptions: gitlab.ListOptions{
 				PerPage: 100,
 			},

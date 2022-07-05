@@ -3,6 +3,7 @@ package users
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"text/tabwriter"
 
 	"github.com/flant/glaball/pkg/client"
@@ -176,7 +177,7 @@ func listUsers(h *client.Host, opt gitlab.ListUsersOptions,
 	}
 }
 
-func listUsersSearch(h *client.Host, key, value string, opt gitlab.ListUsersOptions,
+func listUsersSearch(h *client.Host, key string, value *regexp.Regexp, opt gitlab.ListUsersOptions,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 
 	defer wg.Done()
@@ -192,9 +193,9 @@ func listUsersSearch(h *client.Host, key, value string, opt gitlab.ListUsersOpti
 
 	for _, v := range list {
 		s := sort.ValidFieldValue(userFieldIndexTree, []string{key}, v)
-		if s.(string) == value {
+		// This will panic if value is not a string
+		if value.MatchString(s.(string)) {
 			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
-			return
 		}
 	}
 

@@ -3,6 +3,7 @@ package users
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"text/tabwriter"
 
 	"github.com/flant/glaball/pkg/client"
@@ -18,18 +19,23 @@ import (
 )
 
 var (
-	blockBy, blockFieldValue string
-	blockHosts               bool
+	blockBy          string
+	blockFieldRegexp *regexp.Regexp
+	blockHosts       bool
 )
 
 func NewBlockCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "block [by]",
+		Use:   "block --by=[email|username|name] [regexp]",
 		Short: "Blocks an existing user",
 		Long:  "Blocks an existing user. Only administrators can change attributes of a user.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			blockFieldValue = args[0]
+			re, err := regexp.Compile(args[0])
+			if err != nil {
+				return err
+			}
+			blockFieldRegexp = re
 			return Block()
 		},
 	}
@@ -46,10 +52,10 @@ func Block() error {
 	wg := common.Limiter
 	data := make(chan interface{})
 
-	fmt.Printf("Searching for user %q...\n", blockFieldValue)
+	fmt.Printf("Searching for user %q...\n", blockFieldRegexp)
 	for _, h := range common.Client.Hosts {
 		wg.Add(1)
-		go listUsersSearch(h, blockBy, blockFieldValue, gitlab.ListUsersOptions{
+		go listUsersSearch(h, blockBy, blockFieldRegexp, gitlab.ListUsersOptions{
 			ListOptions: gitlab.ListOptions{
 				PerPage: 100,
 			},
@@ -67,7 +73,7 @@ func Block() error {
 	}
 
 	if len(toBlock) == 0 {
-		return fmt.Errorf("user not found: %s", blockFieldValue)
+		return fmt.Errorf("user not found: %s", blockFieldRegexp)
 	}
 
 	if blockHosts {
@@ -77,8 +83,8 @@ func Block() error {
 		return nil
 	}
 
-	util.AskUser(fmt.Sprintf("Do you really want to block user %q in %d gitlab(s) %v ?",
-		blockFieldValue, len(toBlock.Hosts()), toBlock.Hosts().Projects()))
+	util.AskUser(fmt.Sprintf("Do you really want to block %d user(s) %q in %d gitlab(s) %v ?",
+		len(toBlock), blockFieldRegexp, len(toBlock.Hosts()), toBlock.Hosts().Projects()))
 
 	blocked := make(chan interface{})
 	for _, v := range toBlock.Typed() {

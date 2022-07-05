@@ -3,6 +3,7 @@ package users
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"text/tabwriter"
 
 	"github.com/flant/glaball/pkg/client"
@@ -18,20 +19,25 @@ import (
 )
 
 var (
-	deleteBy, deleteFieldValue string
-	deleteHosts                bool
+	deleteBy          string
+	deleteFieldRegexp *regexp.Regexp
+	deleteHosts       bool
 )
 
 func NewDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete [by]",
+		Use:   "delete --by=[email|username|name] [regexp]",
 		Short: "Deletes a user",
 		Long: `Deletes a user. Available only for administrators.
 This returns a 204 No Content status code if the operation was successfully,
 404 if the resource was not found or 409 if the user cannot be soft deleted.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			deleteFieldValue = args[0]
+			re, err := regexp.Compile(args[0])
+			if err != nil {
+				return err
+			}
+			deleteFieldRegexp = re
 			return Delete()
 		},
 	}
@@ -48,10 +54,10 @@ func Delete() error {
 	wg := common.Limiter
 	data := make(chan interface{})
 
-	fmt.Printf("Searching for user %q...\n", deleteFieldValue)
+	fmt.Printf("Searching for user %q...\n", deleteFieldRegexp)
 	for _, h := range common.Client.Hosts {
 		wg.Add(1)
-		go listUsersSearch(h, deleteBy, deleteFieldValue, gitlab.ListUsersOptions{
+		go listUsersSearch(h, deleteBy, deleteFieldRegexp, gitlab.ListUsersOptions{
 			ListOptions: gitlab.ListOptions{
 				PerPage: 100,
 			},
@@ -69,7 +75,7 @@ func Delete() error {
 	}
 
 	if len(toDelete) == 0 {
-		return fmt.Errorf("user not found: %s", deleteFieldValue)
+		return fmt.Errorf("user not found: %s", deleteFieldRegexp)
 	}
 
 	if deleteHosts {
@@ -85,7 +91,7 @@ func Delete() error {
 	}
 
 	util.AskUser(fmt.Sprintf("Do you really want to delete user %q in %d gitlab(s) %v ?",
-		deleteFieldValue, len(toDelete.Hosts()), toDelete.Hosts().Projects()))
+		deleteFieldRegexp, len(toDelete.Hosts()), toDelete.Hosts().Projects()))
 
 	deleted := make(chan interface{})
 	for _, v := range toDelete.Typed() {
