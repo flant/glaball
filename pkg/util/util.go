@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -20,4 +21,12 @@ func AskUser(msg string) bool {
 	fmt.Println("Aborted")
 	os.Exit(0)
 	return false
+}
+
+func Contains(slice []string, item string) bool {
+	idx := sort.SearchStrings(slice, item)
+	if idx == len(slice) {
+		return false
+	}
+	return slice[idx] == item
 }

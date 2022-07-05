@@ -181,3 +181,129 @@ func (f *visibilityPtrValue) String() string {
 func (f *visibilityPtrValue) Type() string {
 	return "string"
 }
+
+type labelsPtrValue struct{ v **gitlab.Labels }
+
+func NewLabelsPtrValue(p **gitlab.Labels) *labelsPtrValue {
+	return &labelsPtrValue{p}
+}
+
+func (f *labelsPtrValue) Set(s string) error {
+	if *f.v == nil {
+		*f.v = new(gitlab.Labels)
+	}
+	**f.v = append(**f.v, s)
+
+	return nil
+}
+
+func (f *labelsPtrValue) IsCumulative() bool {
+	return true
+}
+
+func (f *labelsPtrValue) String() string {
+	if *f.v == nil {
+		return "<nil>"
+	}
+	return strings.Join(**f.v, ",")
+}
+
+func (f *labelsPtrValue) Type() string {
+	return "[]string"
+}
+
+type assigneeIDPtrValue struct{ v **gitlab.AssigneeIDValue }
+
+func NewAssigneeIDPtrValue(p **gitlab.AssigneeIDValue) *assigneeIDPtrValue {
+	return &assigneeIDPtrValue{p}
+}
+
+func (f *assigneeIDPtrValue) Set(s string) error {
+	*f.v = gitlab.AssigneeID(s)
+
+	return nil
+
+}
+
+func (f *assigneeIDPtrValue) String() string {
+	if *f.v == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("%v", **f.v)
+}
+
+func (f *assigneeIDPtrValue) Type() string {
+	return "int|string"
+}
+
+// TODO:
+// type approverIDsPtrValue struct {
+// 	v   **gitlab.ApproverIDsValue
+// 	ids []int
+// }
+
+// func NewApproverIDsPtrValue(p **gitlab.ApproverIDsValue) *approverIDsPtrValue {
+// 	return &approverIDsPtrValue{p, nil}
+// }
+
+// func (f *approverIDsPtrValue) Set(s string) error {
+// 	switch s {
+// 	case string(gitlab.UserIDAny):
+// 		*f.v = gitlab.ApproverIDs(s)
+// 	case string(gitlab.UserIDNone):
+// 		*f.v = gitlab.ApproverIDs(s)
+// 	default:
+// 		id, err := strconv.Atoi(s)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if *f.v == nil {
+// 			*f.v = gitlab.ApproverIDs([]int{id})
+// 		}
+// 	}
+// 	if *f.v == nil {
+// 		*f.v = gitlab.ApproverIDs(s)
+// 	}
+// 	**f.v = append(**f.v, s)
+
+// 	return nil
+// }
+
+// func (f *approverIDsPtrValue) IsCumulative() bool {
+// 	return true
+// }
+
+// func (f *approverIDsPtrValue) String() string {
+// 	if *f.v == nil {
+// 		return "<nil>"
+// 	}
+// 	return strings.Join(**f.v, ",")
+// }
+
+// func (f *approverIDsPtrValue) Type() string {
+// 	return "[]string"
+// }
+
+type reviewerIDPtrValue struct{ v **gitlab.ReviewerIDValue }
+
+func NewReviewerIDPtrValue(p **gitlab.ReviewerIDValue) *reviewerIDPtrValue {
+	return &reviewerIDPtrValue{p}
+}
+
+func (f *reviewerIDPtrValue) Set(s string) error {
+	*f.v = gitlab.ReviewerID(s)
+
+	return nil
+
+}
+
+func (f *reviewerIDPtrValue) String() string {
+	if *f.v == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("%v", **f.v)
+}
+
+func (f *reviewerIDPtrValue) Type() string {
+	return "int|string"
+}

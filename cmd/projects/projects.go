@@ -13,6 +13,7 @@ func NewCmd() *cobra.Command {
 		NewFilesCmd(),
 		NewListCmd(),
 		NewPipelinesCmd(),
+		NewMergeRequestsCmd(),
 	)
 
 	return cmd
