@@ -189,12 +189,8 @@ func listProjectsFiles(h *client.Host, filepath, ref string, re []*regexp.Regexp
 
 	for _, v := range list {
 		wg.Add(1)
-		targetRef := ref
-		if ref == "" {
-			targetRef = v.DefaultBranch
-		}
 		// TODO: handle deadlock when no files found
-		go getRawFile(h, v, filepath, ref, re, gitlab.GetRawFileOptions{Ref: &targetRef}, wg, data, options...)
+		go getRawFile(h, v, filepath, ref, re, wg, data, options...)
 	}
 
 	if resp.NextPage > 0 {
@@ -204,13 +200,17 @@ func listProjectsFiles(h *client.Host, filepath, ref string, re []*regexp.Regexp
 	}
 }
 
-func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, re []*regexp.Regexp, opt gitlab.GetRawFileOptions,
+func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, re []*regexp.Regexp,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 
 	defer wg.Done()
 
 	wg.Lock()
-	raw, resp, err := h.Client.RepositoryFiles.GetRawFile(project.ID, filepath, &opt, options...)
+	targetRef := ref
+	if ref == "" {
+		targetRef = project.DefaultBranch
+	}
+	raw, resp, err := h.Client.RepositoryFiles.GetRawFile(project.ID, filepath, &gitlab.GetRawFileOptions{Ref: &targetRef}, options...)
 	if err != nil {
 		hclog.L().Named("files").Trace("get raw file error", "project", project.WebURL, "error", err)
 		wg.Unlock()
@@ -319,4 +319,9 @@ func rawBlobContent(h *client.Host, project *gitlab.Project, re []*regexp.Regexp
 func ListProjectsFiles(h *client.Host, filepath, ref string, re []*regexp.Regexp, opt gitlab.ListProjectsOptions,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 	listProjectsFiles(h, filepath, ref, re, opt, wg, data, options...)
+}
+
+func GetRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, re []*regexp.Regexp,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
+	getRawFile(h, project, filepath, ref, re, wg, data, options...)
 }

@@ -188,13 +188,10 @@ func ListPipelineCleanupSchedulesCmd() error {
 	data := make(chan interface{})
 
 	for _, h := range common.Client.Hosts {
-		fmt.Printf("Searching for cleanups in %s ...\n", h.URL)
-		// TODO: context with cancel
-		for _, fp := range cleanupFilepaths {
-			wg.Add(1)
-			// files.go
-			go listProjectsFiles(h, fp, gitRef, re, listProjectsPipelinesOptions, wg, data, common.Client.WithCache())
-		}
+		fmt.Printf("Searching for .gitlab-ci.yml files in %s ...\n", h.URL)
+		wg.Add(1)
+		// files.go
+		go listProjectsFiles(h, ".gitlab-ci.yml", gitRef, re, listProjectsPipelinesOptions, wg, data, common.Client.WithCache())
 	}
 
 	go func() {
@@ -202,8 +199,32 @@ func ListPipelineCleanupSchedulesCmd() error {
 		close(data)
 	}()
 
-	toList := make(sort.Elements, 0)
+	projectList := make(sort.Elements, 0)
 	for e := range data {
+		projectList = append(projectList, e)
+	}
+
+	if len(projectList) == 0 {
+		return fmt.Errorf(".gitlab-ci.yml was not found in any project")
+	}
+
+	// search for `cleanupFilepaths` files with contents matching `cleanupPatterns`
+	projectsCh := make(chan interface{})
+	for _, v := range projectList.Typed() {
+		fmt.Printf("Searching for cleanups in %s ...\n", v.Host.URL)
+		for _, fp := range cleanupFilepaths {
+			wg.Add(1)
+			go getRawFile(v.Host, v.Struct.(*gitlab.Project), fp, gitRef, re, wg, projectsCh, common.Client.WithCache())
+		}
+	}
+
+	go func() {
+		wg.Wait()
+		close(projectsCh)
+	}()
+
+	toList := make(sort.Elements, 0)
+	for e := range projectsCh {
 		toList = append(toList, e)
 	}
 
