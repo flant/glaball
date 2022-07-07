@@ -23,8 +23,16 @@ func AskUser(msg string) bool {
 	return false
 }
 
-func Contains(slice []string, item string) bool {
+func ContainsString(slice []string, item string) bool {
 	idx := sort.SearchStrings(slice, item)
+	if idx == len(slice) {
+		return false
+	}
+	return slice[idx] == item
+}
+
+func ContainsInt(slice []int, item int) bool {
+	idx := sort.SearchInts(slice, item)
 	if idx == len(slice) {
 		return false
 	}

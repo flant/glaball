@@ -138,7 +138,7 @@ func MergeRequestsListCmd() error {
 		return fmt.Errorf("no merge requests found")
 	}
 
-	if util.Contains(outputFormat, "csv") {
+	if util.ContainsString(outputFormat, "csv") {
 		w := csv.NewWriter(os.Stdout)
 		w.Write([]string{"HOST", "URL", "Title", "Username", "Last"})
 		for _, v := range results {
@@ -150,7 +150,7 @@ func MergeRequestsListCmd() error {
 		w.Flush()
 	}
 
-	if util.Contains(outputFormat, "table") {
+	if util.ContainsString(outputFormat, "table") {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
 		fmt.Fprintf(w, "HOST\tURL\tAuthor\tLast Updated\n")
 		total := 0
@@ -189,7 +189,7 @@ func listProjectsByNamespace(h *client.Host, namespaces []string, opt gitlab.Lis
 	wg.Unlock()
 
 	for _, v := range list {
-		if len(namespaces) == 0 || util.Contains(namespaces, v.Namespace.Name) {
+		if len(namespaces) == 0 || util.ContainsString(namespaces, v.Namespace.Name) {
 			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
 		}
 	}
@@ -237,6 +237,39 @@ func listMergeRequests(h *client.Host, project *gitlab.Project, opt gitlab.ListP
 func ListMergeRequests(h *client.Host, project *gitlab.Project, opt gitlab.ListProjectMergeRequestsOptions,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
 	return listMergeRequests(h, project, opt, wg, data, options...)
+}
+
+func listMergeRequestsByAuthorID(h *client.Host, project *gitlab.Project, authorIDs []int, opt gitlab.ListProjectMergeRequestsOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
+	defer wg.Done()
+
+	wg.Lock()
+	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt)
+	if err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return err
+	}
+	wg.Unlock()
+
+	for _, v := range list {
+		if len(authorIDs) == 0 || util.ContainsInt(authorIDs, v.Author.ID) {
+			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+		}
+	}
+
+	if resp.NextPage > 0 {
+		wg.Add(1)
+		opt.Page = resp.NextPage
+		go listMergeRequestsByAuthorID(h, project, authorIDs, opt, wg, data, options...)
+	}
+
+	return nil
+}
+
+func ListMergeRequestsByAuthorID(h *client.Host, project *gitlab.Project, authorIDs []int, opt gitlab.ListProjectMergeRequestsOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
+	return listMergeRequestsByAuthorID(h, project, authorIDs, opt, wg, data, options...)
 }
 
 func listMergeRequestsSearch(h *client.Host, project *gitlab.Project, key string, value *regexp.Regexp, opt gitlab.ListProjectMergeRequestsOptions,
