@@ -23,6 +23,7 @@ func AskUser(msg string) bool {
 	return false
 }
 
+// The slice must be sorted in ascending order
 func ContainsString(slice []string, item string) bool {
 	idx := sort.SearchStrings(slice, item)
 	if idx == len(slice) {
@@ -31,6 +32,7 @@ func ContainsString(slice []string, item string) bool {
 	return slice[idx] == item
 }
 
+// The slice must be sorted in ascending order
 func ContainsInt(slice []int, item int) bool {
 	idx := sort.SearchInts(slice, item)
 	if idx == len(slice) {

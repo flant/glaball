@@ -1,6 +1,8 @@
 package projects
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"regexp"
@@ -23,7 +25,9 @@ var (
 	filepaths []string
 	patterns  []string
 
-	gitRef string
+	gitRef         string
+	showContents   bool
+	showNumOfLines int
 )
 
 func NewFilesCmd() *cobra.Command {
@@ -52,6 +56,8 @@ func NewSearchCmd() *cobra.Command {
 
 	cmd.Flags().StringSliceVar(&patterns, "pattern", []string{".*"}, "List of regex patterns to search in files")
 	cmd.Flags().StringVar(&gitRef, "ref", "", "Git branch to search file in. Default branch if no value provided")
+	cmd.Flags().BoolVar(&showContents, "show", false, "Show the contents of the file you are looking for")
+	cmd.Flags().IntVar(&showNumOfLines, "num", 0, "Number of lines of file contents to show")
 
 	// ListProjectsOptions
 	listProjectsOptionsFlags(cmd, &listProjectsFilesOptions)
@@ -87,10 +93,10 @@ func Search() error {
 	}()
 
 	results := sort.FromChannel(data, &sort.Options{
-		OrderBy:    []string{"web_url"},
+		OrderBy:    []string{"project.web_url"},
 		SortBy:     "desc",
 		GroupBy:    "",
-		StructType: gitlab.Project{},
+		StructType: ProjectFile{},
 	})
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
@@ -102,6 +108,22 @@ func Search() error {
 		unique++         // todo
 		total += v.Count //todo
 		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(), v.Cached)
+		if showContents {
+			for _, e := range v.Elements.Typed() {
+				if showNumOfLines > 0 {
+					r := bytes.NewReader(e.Struct.(*ProjectFile).Raw)
+					scanner := bufio.NewScanner(r)
+					for i := 0; i < showNumOfLines; i++ {
+						if scanner.Scan() {
+							fmt.Fprintf(w, "%s\n", scanner.Text())
+						}
+					}
+					fmt.Fprint(w, "\n")
+				} else {
+					fmt.Fprintf(w, "%s\n", e.Struct.(*ProjectFile).Raw)
+				}
+			}
+		}
 	}
 
 	fmt.Fprintf(w, "Unique: %d\nTotal: %d\nErrors: %d\n", unique, total, len(wg.Errors()))
@@ -220,12 +242,17 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 
 	for _, r := range re {
 		if r.Match(raw) {
-			data <- sort.Element{Host: h, Struct: project, Cached: resp.Header.Get("X-From-Cache") == "1"}
+			data <- sort.Element{Host: h, Struct: &ProjectFile{Project: project, Raw: raw}, Cached: resp.Header.Get("X-From-Cache") == "1"}
 			hclog.L().Named("files").Trace("search pattern was found in file", "team", h.Team, "project", h.Project, "host", h.URL,
 				"repo", project.WebURL, "file", filepath, "pattern", r.String(), "content", hclog.Fmt("%s", raw))
 			return
 		}
 	}
+}
+
+type ProjectFile struct {
+	Project *gitlab.Project `json:"project,omitempty"`
+	Raw     []byte
 }
 
 func listProjectsFilesRegexp(h *client.Host, ref string, re []*regexp.Regexp, opt gitlab.ListProjectsOptions,

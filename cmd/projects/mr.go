@@ -267,6 +267,7 @@ func listMergeRequestsByAuthorID(h *client.Host, project *gitlab.Project, author
 	return nil
 }
 
+// authorIDs slice must be sorted in ascending order
 func ListMergeRequestsByAuthorID(h *client.Host, project *gitlab.Project, authorIDs []int, opt gitlab.ListProjectMergeRequestsOptions,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
 	return listMergeRequestsByAuthorID(h, project, authorIDs, opt, wg, data, options...)
