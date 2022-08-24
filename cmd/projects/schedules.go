@@ -214,7 +214,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 		fmt.Printf("Searching for cleanups in %s ...\n", v.Host.URL)
 		for _, fp := range cleanupFilepaths {
 			wg.Add(1)
-			go getRawFile(v.Host, v.Struct.(*gitlab.Project), fp, gitRef, re, wg, projectsCh, common.Client.WithCache())
+			go getRawFile(v.Host, v.Struct.(*ProjectFile).Project, fp, gitRef, re, wg, projectsCh, common.Client.WithCache())
 		}
 	}
 
@@ -235,7 +235,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 	schedules := make(chan interface{})
 	for _, v := range toList.Typed() {
 		wg.Add(1)
-		go listPipelineSchedules(v.Host, v.Struct.(*gitlab.Project), gitlab.ListPipelineSchedulesOptions{PerPage: 100},
+		go listPipelineSchedules(v.Host, v.Struct.(*ProjectFile).Project, gitlab.ListPipelineSchedulesOptions{PerPage: 100},
 			desc, wg, schedules, common.Client.WithCache())
 	}
 
