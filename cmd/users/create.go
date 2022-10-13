@@ -82,7 +82,7 @@ func Create() error {
 	}
 
 	util.AskUser(fmt.Sprintf("Do you really want to create user %q in %v ?",
-		*createOpt.Username, common.Client.Hosts.Projects()))
+		*createOpt.Username, common.Client.Hosts.Projects(common.Config.ShowAll)))
 
 	wg := common.Limiter
 	data := make(chan interface{})
@@ -107,7 +107,7 @@ func Create() error {
 
 	total := 0
 	for _, v := range results {
-		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(), v.Cached)
+		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(common.Config.ShowAll), v.Cached)
 		total++
 	}
 

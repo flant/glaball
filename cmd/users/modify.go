@@ -107,7 +107,7 @@ func Modify() error {
 	}
 
 	util.AskUser(fmt.Sprintf("Do you really want to modify %d users %q in %d gitlab(s) %v ?",
-		len(toModify), modifyFieldRegexp, len(toModify.Hosts()), toModify.Hosts().Projects()))
+		len(toModify), modifyFieldRegexp, len(toModify.Hosts()), toModify.Hosts().Projects(common.Config.ShowAll)))
 
 	modified := make(chan interface{})
 	for _, v := range toModify.Typed() {
@@ -130,7 +130,7 @@ func Modify() error {
 
 	total := 0
 	for _, v := range results {
-		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(), v.Cached)
+		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(common.Config.ShowAll), v.Cached)
 		total++
 	}
 

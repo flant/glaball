@@ -221,7 +221,7 @@ func ByHost() func(i interface{}) interface{} {
 			return v.Host
 		}
 
-		return Elements(i.(linq.Group).Group).Hosts().Projects()[0]
+		return Elements(i.(linq.Group).Group).Hosts().Projects(true)[0]
 	}
 }
 
