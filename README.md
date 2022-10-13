@@ -144,6 +144,7 @@ Available Commands:
   whoami      Current API user
 
 Flags:
+  -a, --all                Show all hosts in grouped output
       --config string      Path to the configuration file. (default "$HOME/.config/glaball/config.yaml")
   -f, --filter string      Select Gitlab(s) by regexp filter (default ".*")
   -h, --help               help for glaball
@@ -225,7 +226,7 @@ $ glaball users block --by=username test-glaball --hosts
 *You can search for several patterns at once; it does not affect the search time.*
 
 ```
-$ glaball projects files search --filepath="werf.yaml,werf.yml" --pattern="mount"
+$ glaball projects files search --filepath="werf.yaml,werf.yml" --pattern="mount" --show
 ```
 
 ### Search for scheduled pipelines
@@ -247,7 +248,7 @@ $ glaball users list --group_by=username
 
 Show only those users who are active in *n* projects:
 ```
-$ glaball users list --group_by=username --count n
+$ glaball users list --group_by=username --count n --all
 ```
 
 Display the list of administrators:
@@ -277,7 +278,7 @@ $ glaball whoami
 
 # Community
 
-Originally created in [Flant](https://flant.com/). 
+Originally created in [Flant](https://flant.com/).
 
 Please, feel free to reach developers/maintainers and users via [GitHub Discussions](https://github.com/flant/glaball/discussions) for any questions.
 

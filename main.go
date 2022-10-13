@@ -83,6 +83,8 @@ func init() {
 
 	rootCmd.PersistentFlags().StringP("filter", "f", ".*", "Select Gitlab(s) by regexp filter")
 
+	rootCmd.PersistentFlags().BoolP("all", "a", false, "Show all hosts in grouped output")
+
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log_level", "info",
 		"Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, off]")
 
@@ -119,6 +121,8 @@ func initConfig() {
 	viper.BindPFlag("cache.ttl", rootCmd.Flags().Lookup("ttl"))
 
 	viper.BindPFlag("filter", rootCmd.Flags().Lookup("filter"))
+
+	viper.BindPFlag("all", rootCmd.Flags().Lookup("all"))
 
 	viper.BindPFlag("threads", rootCmd.Flags().Lookup("threads"))
 

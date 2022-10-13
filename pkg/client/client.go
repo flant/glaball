@@ -23,18 +23,18 @@ type Client struct {
 
 type Hosts []*Host
 
-func (a Hosts) Projects() []string {
+func (a Hosts) Projects(all bool) []string {
 	k := len(a)
-	if k > 5 {
+	if !all && k > 5 {
 		k = 5
 	}
 	s := make([]string, 0, k)
 	for _, h := range a[:k] {
-		s = append(s, h.Project)
+		s = append(s, fmt.Sprintf("%s.%s", h.Project, h.Name))
 	}
 	sort.Strings(s)
 
-	if k == 5 {
+	if !all && k == 5 {
 		s = append(s, "...")
 	}
 
