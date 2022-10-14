@@ -17,6 +17,7 @@ type Config struct {
 	Cache   CacheOptions `yaml:"cache" mapstructure:"cache"`
 	Filter  string       `yaml:"filter" mapstructure:"filter"`
 	Threads int          `yaml:"threads" mapstructure:"threads"`
+	ShowAll bool         `yaml:"all" mapstructure:"all"`
 }
 
 type Hosts map[string]map[string]map[string]Host

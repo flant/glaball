@@ -84,7 +84,7 @@ func Block() error {
 	}
 
 	util.AskUser(fmt.Sprintf("Do you really want to block %d user(s) %q in %d gitlab(s) %v ?",
-		len(toBlock), blockFieldRegexp, len(toBlock.Hosts()), toBlock.Hosts().Projects()))
+		len(toBlock), blockFieldRegexp, len(toBlock.Hosts()), toBlock.Hosts().Projects(common.Config.ShowAll)))
 
 	blocked := make(chan interface{})
 	for _, v := range toBlock.Typed() {
@@ -107,7 +107,7 @@ func Block() error {
 
 	total := 0
 	for _, v := range results {
-		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(), v.Cached)
+		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(common.Config.ShowAll), v.Cached)
 		total++
 	}
 

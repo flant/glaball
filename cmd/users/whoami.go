@@ -57,7 +57,7 @@ func Whoami() error {
 	for _, v := range results {
 		total += v.Count //todo
 
-		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(), v.Cached)
+		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(common.Config.ShowAll), v.Cached)
 	}
 
 	fmt.Fprintf(w, "Total: %d\nErrors: %d\n", total, len(wg.Errors()))

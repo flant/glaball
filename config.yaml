@@ -11,6 +11,8 @@
 
 # threads: 100
 
+# all: false
+
 hosts:
   main:
     example-project:

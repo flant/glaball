@@ -147,7 +147,7 @@ func ListPipelineSchedulesCmd() error {
 			len(schedules),
 			r.Key,
 			schedules.Descriptions(),
-			r.Elements.Hosts().Projects(),
+			r.Elements.Hosts().Projects(common.Config.ShowAll),
 			r.Cached)
 	}
 
@@ -272,7 +272,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 			len(schedules),
 			r.Key,
 			schedules.Descriptions(),
-			r.Elements.Hosts().Projects(),
+			r.Elements.Hosts().Projects(common.Config.ShowAll),
 			r.Cached)
 	}
 
