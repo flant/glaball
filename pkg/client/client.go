@@ -3,13 +3,18 @@ package client
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/flant/glaball/pkg/config"
+	"github.com/gregjones/httpcache"
 
 	"github.com/ahmetb/go-linq"
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
@@ -74,13 +79,59 @@ func (h *Host) CompareTo(c linq.Comparable) int {
 	return 0
 }
 
+func NewHttpClient(addresses map[string]string, cache *config.CacheOptions) (*http.Client, error) {
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		DualStack: true,
+	}
+
+	transport := cleanhttp.DefaultPooledTransport()
+	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+		if v, ok := addresses[host]; ok {
+			dest := net.JoinHostPort(v, port)
+			hclog.Default().Named("http-client").Debug("domain address has been modified", "original", addr, "modified", dest)
+			addr = dest
+		}
+		return dialer.DialContext(ctx, network, addr)
+	}
+
+	if cache == nil || !cache.Enabled {
+		return &http.Client{
+			Transport: transport,
+			Timeout:   10 * time.Second,
+		}, nil
+	}
+
+	diskCache, err := cache.DiskCache()
+	if err != nil {
+		return nil, err
+	}
+
+	return &http.Client{
+		Transport: &httpcache.Transport{
+			Transport:           transport,
+			Cache:               diskCache,
+			MarkCachedResponses: true,
+		},
+		Timeout: 10 * time.Second,
+	}, nil
+
+}
+
 func NewClient(cfg *config.Config) (*Client, error) {
 	filter, err := regexp.Compile(cfg.Filter)
 	if err != nil {
 		return nil, err
 	}
 
-	httpClient, err := cfg.Cache.HttpCacheClient()
+	customAddresses := make(map[string]string)
+
+	httpClient, err := NewHttpClient(customAddresses, &cfg.Cache)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +166,11 @@ func NewClient(cfg *config.Config) (*Client, error) {
 				if err != nil {
 					return nil, err
 				}
+
+				if host.IP != "" {
+					customAddresses[gl.BaseURL().Hostname()] = host.IP
+				}
+
 				client.Hosts = append(client.Hosts, &Host{
 					Team:    team,
 					Project: project,
