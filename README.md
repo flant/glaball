@@ -65,6 +65,10 @@ cache:
 # at the config level or use the --filter flag (-f)
 filter: ".*"
 
+# By default, count of hosts in grouped output is limited to 5.
+# If you want to show all hosts, set this option to true or use the --all flag (-a).
+all: false
+
 # The number of simultaneous HTTP connections
 threads: 100
 
@@ -79,6 +83,9 @@ hosts:
       name:
         # Link to the project's GitLab repo
         url: https://gitlab.example.com
+        # Custom IP address of host
+        # If you want to override IP address resolved by the default resolver, use this option.
+        ip: 127.0.0.1
         # The user's token the client will use to connect to the API
         # API token - provides full permissions, including user creation/deletion
         # Read API token - provides read-only access without permissions to create/modify users or filtering the list of users by their email address

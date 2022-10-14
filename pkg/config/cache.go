@@ -1,15 +1,12 @@
 package config
 
 import (
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/alecthomas/units"
-	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
-	"github.com/hashicorp/go-cleanhttp"
 	"github.com/peterbourgon/diskv"
 )
 
@@ -78,27 +75,4 @@ func (c *CacheOptions) DiskCache() (*diskcache.Cache, error) {
 		return nil, err
 	}
 	return diskcache.NewWithDiskv(diskv), nil
-}
-
-func (c *CacheOptions) HttpCacheClient() (*http.Client, error) {
-	transport := cleanhttp.DefaultPooledTransport()
-
-	if !c.Enabled {
-		return &http.Client{Transport: transport}, nil
-	}
-
-	diskCache, err := c.DiskCache()
-	if err != nil {
-		return nil, err
-	}
-
-	return &http.Client{
-		Transport: &httpcache.Transport{
-			Transport:           transport,
-			Cache:               diskCache,
-			MarkCachedResponses: true,
-		},
-		Timeout: 10 * time.Second,
-	}, nil
-
 }

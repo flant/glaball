@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort"
 
 	"github.com/flant/glaball/cmd/common"
@@ -26,7 +27,7 @@ func TestSearch(t *testing.T) {
 		fmt.Fprint(w, TestData)
 	})
 
-	wg := common.Limiter
+	wg := limiter.NewLimiter(limiter.DefaultLimit)
 	data := make(chan interface{})
 
 	searchBy := "username"

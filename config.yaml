@@ -21,4 +21,5 @@ hosts:
         token: api_token
       # secondary:
       #   url: https://gitlab-secondary.example.com
+      #   ip: 127.0.0.1
       #   token: api_token

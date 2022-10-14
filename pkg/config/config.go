@@ -24,6 +24,7 @@ type Hosts map[string]map[string]map[string]Host
 
 type Host struct {
 	URL         string             `yaml:"url" mapstructure:"url"`
+	IP          string             `yaml:"ip" mapstructure:"ip"`
 	Token       string             `yaml:"token" mapstructure:"token"`
 	RateLimiter RateLimiterOptions `yaml:"rate_limiter" mapstructure:"rate_limiter"`
 }
