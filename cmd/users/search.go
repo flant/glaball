@@ -51,11 +51,7 @@ func Search() error {
 	fmt.Printf("Searching for user %s %q...\n", searchBy, searchFieldRegexp)
 	for _, h := range common.Client.Hosts {
 		wg.Add(1)
-		go listUsersSearch(h, searchBy, searchFieldRegexp, gitlab.ListUsersOptions{
-			ListOptions: gitlab.ListOptions{
-				PerPage: 100,
-			},
-		}, wg, data, common.Client.WithCache())
+		go listUsersSearch(h, searchBy, searchFieldRegexp, listUsersOptions, wg, data, common.Client.WithCache())
 	}
 
 	go func() {
