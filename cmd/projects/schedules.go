@@ -28,6 +28,49 @@ var (
 	cleanupFilepaths             []string
 	cleanupPatterns              []string
 	cleanupDescriptions          []string
+	cleanupOwnerToken            string
+	scheduleFormat               = util.Dict{
+		{
+			Key:   "COUNT",
+			Value: "[%d]",
+		},
+		{
+			Key:   "REPOSITORY",
+			Value: "%s",
+		},
+		{
+			Key:   "SCHEDULE",
+			Value: "[%s]",
+		},
+		{
+			Key:   "STATUS",
+			Value: "[%s]",
+		},
+		{
+			Key:   "OWNER",
+			Value: "[%s]",
+		},
+		{
+			Key:   "HOST",
+			Value: "[%s]",
+		},
+		{
+			Key:   "CACHED",
+			Value: "[%s]",
+		},
+	}
+
+	totalFormat = util.Dict{
+		{
+			Value: "Unique: %d",
+		},
+		{
+			Value: "Total: %d",
+		},
+		{
+			Value: "Errors: %d",
+		},
+	}
 )
 
 func NewPipelinesCmd() *cobra.Command {
@@ -88,6 +131,7 @@ func NewPipelineCleanupSchedulesCmd() *cobra.Command {
 		"List of regex patterns to search in files")
 	cmd.Flags().StringSliceVar(&cleanupDescriptions, "description", []string{"(?i)cleanup"},
 		"List of regex patterns to search in pipelines schedules descriptions")
+	cmd.Flags().StringVar(&cleanupOwnerToken, "setowner", "", "Provide a private access token of a new owner with \"api\" scope to change ownership of cleanup schedules")
 
 	// ListProjectsOptions
 	listProjectsOptionsFlags(cmd, &listProjectsPipelinesOptions)
@@ -129,7 +173,9 @@ func ListPipelineSchedulesCmd() error {
 	query.ToSlice(&results)
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
-	fmt.Fprintf(w, "COUNT\tREPOSITORY\tSCHEDULES\tHOSTS\tCACHED\n")
+	if _, err := fmt.Fprintf(w, "COUNT\tREPOSITORY\tSCHEDULES\tHOSTS\tCACHED\n"); err != nil {
+		return err
+	}
 	unique := 0
 	total := 0
 
@@ -143,17 +189,23 @@ func ListPipelineSchedulesCmd() error {
 				schedules = append(schedules, sched)
 			}
 		}
-		fmt.Fprintf(w, "[%d]\t%s\t[%s]\t%s\t[%s]\n",
+		if _, err := fmt.Fprintf(w, "[%d]\t%s\t[%s]\t%s\t[%s]\n",
 			len(schedules),
 			r.Key,
 			schedules.Descriptions(),
 			r.Elements.Hosts().Projects(common.Config.ShowAll),
-			r.Cached)
+			r.Cached); err != nil {
+			return err
+		}
 	}
 
-	fmt.Fprintf(w, "Unique: %d\nTotal: %d\nErrors: %d\n", unique, total, len(wg.Errors()))
+	if _, err := fmt.Fprintf(w, "Unique: %d\nTotal: %d\nErrors: %d\n", unique, total, len(wg.Errors())); err != nil {
+		return err
+	}
 
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		return err
+	}
 
 	for _, err := range wg.Errors() {
 		hclog.L().Error(err.Err.Error())
@@ -163,6 +215,27 @@ func ListPipelineSchedulesCmd() error {
 }
 
 func ListPipelineCleanupSchedulesCmd() error {
+	var ownerUser *gitlab.User
+	cacheFunc := common.Client.WithNoCache()
+
+	if cleanupOwnerToken != "" {
+		switch len(common.Client.Hosts) {
+		case 0:
+		case 1:
+			host := common.Client.Hosts[0]
+			v, _, err := host.Client.Users.CurrentUser(gitlab.WithToken(gitlab.PrivateToken, cleanupOwnerToken),
+				common.Client.WithNoCache())
+			if err != nil {
+				return err
+			}
+			ownerUser = v
+			cacheFunc = common.Client.WithNoCache()
+		default:
+			return fmt.Errorf("only single host is supported when change cleanup schedules owner, please use -f (--filter) flag")
+		}
+	}
+
+	any := []*regexp.Regexp{regexp.MustCompile(".*")}
 	re := make([]*regexp.Regexp, 0, len(cleanupPatterns))
 	for _, p := range cleanupPatterns {
 		r, err := regexp.Compile(p)
@@ -188,10 +261,10 @@ func ListPipelineCleanupSchedulesCmd() error {
 	data := make(chan interface{})
 
 	for _, h := range common.Client.Hosts {
-		fmt.Printf("Searching for .gitlab-ci.yml files in %s ...\n", h.URL)
+		fmt.Printf("Searching for cleanups in %s ...\n", h.URL)
 		wg.Add(1)
 		// files.go
-		go listProjectsFiles(h, ".gitlab-ci.yml", gitRef, re, listProjectsPipelinesOptions, wg, data, common.Client.WithCache())
+		go listProjectsFiles(h, ".gitlab-ci.yml", gitRef, any, listProjectsPipelinesOptions, wg, data, cacheFunc)
 	}
 
 	go func() {
@@ -211,10 +284,9 @@ func ListPipelineCleanupSchedulesCmd() error {
 	// search for `cleanupFilepaths` files with contents matching `cleanupPatterns`
 	projectsCh := make(chan interface{})
 	for _, v := range projectList.Typed() {
-		fmt.Printf("Searching for cleanups in %s ...\n", v.Host.URL)
 		for _, fp := range cleanupFilepaths {
 			wg.Add(1)
-			go getRawFile(v.Host, v.Struct.(*ProjectFile).Project, fp, gitRef, re, wg, projectsCh, common.Client.WithCache())
+			go getRawFile(v.Host, v.Struct.(*ProjectFile).Project, fp, gitRef, re, wg, projectsCh, cacheFunc)
 		}
 	}
 
@@ -236,7 +308,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 	for _, v := range toList.Typed() {
 		wg.Add(1)
 		go listPipelineSchedules(v.Host, v.Struct.(*ProjectFile).Project, gitlab.ListPipelineSchedulesOptions{PerPage: 100},
-			desc, wg, schedules, common.Client.WithCache())
+			desc, wg, schedules, cacheFunc)
 	}
 
 	go func() {
@@ -250,35 +322,109 @@ func ListPipelineCleanupSchedulesCmd() error {
 		StructType: ProjectPipelineSchedule{},
 	})
 
+	toChangeOwner := make(sort.Elements, 0)
+	if cleanupOwnerToken != "" && ownerUser != nil {
+		query = query.Where(func(i interface{}) bool {
+			for _, v := range i.(sort.Result).Elements.Typed() {
+				if s := v.Struct.(ProjectPipelineSchedule).Schedule; s != nil {
+					if s.Owner.ID == ownerUser.ID {
+						return true
+					}
+					toChangeOwner = append(toChangeOwner, v)
+				}
+			}
+			return false
+		})
+	}
+
 	query.ToSlice(&results)
 
+	if cleanupOwnerToken != "" && ownerUser != nil {
+		changedOwner := make(chan interface{})
+		host := common.Client.Hosts[0]
+		if len(toChangeOwner) == 0 {
+			if len(results) == 0 {
+				return fmt.Errorf("no cleanup schedules found in gitlab %q",
+					host.ProjectName())
+			}
+			return fmt.Errorf("all cleanup schedules are already owned by %q user in gitlab %q",
+				ownerUser.Username, host.ProjectName())
+		}
+
+		util.AskUser(fmt.Sprintf("Do you really want to change %d cleanup schedules owner to %q user in gitlab %q ?",
+			len(toChangeOwner), ownerUser.Username, host.ProjectName()))
+
+		fmt.Printf("Setting cleanup schedules owner to %q in %s ...\n", ownerUser.Username, host.URL)
+		for _, v := range toChangeOwner.Typed() {
+			wg.Add(1)
+			go takeOwnership(v.Host, v.Struct.(ProjectPipelineSchedule), wg, changedOwner)
+		}
+
+		go func() {
+			wg.Wait()
+			close(changedOwner)
+		}()
+
+		results = sort.FromChannel(changedOwner, &sort.Options{
+			OrderBy:    []string{"project.web_url"},
+			StructType: ProjectPipelineSchedule{},
+		})
+	}
+
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
-	fmt.Fprintf(w, "COUNT\tREPOSITORY\tSCHEDULES\tHOSTS\tCACHED\n")
+	if _, err := fmt.Fprintln(w, strings.Join(scheduleFormat.Keys(), "\t")); err != nil {
+		return err
+	}
+
 	unique := 0
 	total := 0
 
 	for _, r := range results {
 		unique++         // todo
 		total += r.Count //todo
-		schedules := make(Schedules, 0, len(r.Elements))
 		for _, v := range r.Elements.Typed() {
-			sched := v.Struct.(ProjectPipelineSchedule).Schedule
-			if sched != nil {
-				schedules = append(schedules, sched)
-				continue
+			count := 0
+			scheduleDescription := "-"
+			pipelineStatus := "-"
+			owner := "-"
+
+			if s := v.Struct.(ProjectPipelineSchedule).Schedule; s != nil {
+				count = 1
+				owner = s.Owner.Username
+				if s.LastPipeline.Status == "" {
+					pipelineStatus = "unknown"
+				} else {
+					pipelineStatus = s.LastPipeline.Status
+
+				}
+				if s.Active {
+					scheduleDescription = fmt.Sprintf("%s (active)", s.Description)
+				} else {
+					scheduleDescription = fmt.Sprintf("%s (inactive)", s.Description)
+				}
+			}
+
+			if err := scheduleFormat.Print(w, "\t",
+				count,
+				r.Key,
+				scheduleDescription,
+				pipelineStatus,
+				owner,
+				v.Host.ProjectName(),
+				r.Cached,
+			); err != nil {
+				return err
 			}
 		}
-		fmt.Fprintf(w, "[%d]\t%s\t[%s]\t%s\t[%s]\n",
-			len(schedules),
-			r.Key,
-			schedules.Descriptions(),
-			r.Elements.Hosts().Projects(common.Config.ShowAll),
-			r.Cached)
 	}
 
-	fmt.Fprintf(w, "Unique: %d\nTotal: %d\nErrors: %d\n", unique, total, len(wg.Errors()))
+	if err := totalFormat.Print(w, "\n", unique, total, len(wg.Errors())); err != nil {
+		return err
+	}
 
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		return err
+	}
 
 	for _, err := range wg.Errors() {
 		hclog.L().Error(err.Err.Error())
@@ -399,7 +545,11 @@ func (a Schedules) Descriptions() string {
 		if v.Active {
 			active = "active"
 		}
-		s = append(s, fmt.Sprintf("%s: %q (%s)", v.LastPipeline.Status, v.Description, active))
+		status := v.LastPipeline.Status
+		if status == "" {
+			status = "unknown"
+		}
+		s = append(s, fmt.Sprintf("%s: %q (%s)", status, v.Description, active))
 	}
 
 	go_sort.Strings(s)
@@ -410,4 +560,24 @@ func (a Schedules) Descriptions() string {
 func ListPipelineSchedules(h *client.Host, project *gitlab.Project, opt gitlab.ListPipelineSchedulesOptions,
 	desc []*regexp.Regexp, wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 	listPipelineSchedules(h, project, opt, desc, wg, data, options...)
+}
+
+func takeOwnership(h *client.Host, schedule ProjectPipelineSchedule,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
+
+	defer wg.Done()
+
+	wg.Lock()
+	v, _, err := h.Client.PipelineSchedules.TakeOwnershipOfPipelineSchedule(
+		schedule.Project.ID, schedule.Schedule.ID, gitlab.WithToken(gitlab.PrivateToken, cleanupOwnerToken))
+	if err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return
+	}
+	wg.Unlock()
+
+	schedule.Schedule = v
+
+	data <- sort.Element{Host: h, Struct: schedule, Cached: false}
 }
