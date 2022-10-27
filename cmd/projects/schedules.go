@@ -40,7 +40,7 @@ var (
 		},
 		{
 			Key:   "SCHEDULE",
-			Value: "[%s]",
+			Value: "%s",
 		},
 		{
 			Key:   "STATUS",
@@ -48,7 +48,7 @@ var (
 		},
 		{
 			Key:   "OWNER",
-			Value: "[%s]",
+			Value: "%s",
 		},
 		{
 			Key:   "HOST",
@@ -216,7 +216,7 @@ func ListPipelineSchedulesCmd() error {
 
 func ListPipelineCleanupSchedulesCmd() error {
 	var ownerUser *gitlab.User
-	cacheFunc := common.Client.WithNoCache()
+	cacheFunc := common.Client.WithCache()
 
 	if cleanupOwnerToken != "" {
 		switch len(common.Client.Hosts) {
