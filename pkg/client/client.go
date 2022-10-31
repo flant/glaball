@@ -35,7 +35,7 @@ func (a Hosts) Projects(all bool) []string {
 	}
 	s := make([]string, 0, k)
 	for _, h := range a[:k] {
-		s = append(s, fmt.Sprintf("%s.%s", h.Project, h.Name))
+		s = append(s, h.ProjectName())
 	}
 	sort.Strings(s)
 
@@ -65,6 +65,10 @@ type Host struct {
 
 func (h Host) FullName() string {
 	return fmt.Sprintf("%s.%s.%s", h.Team, h.Project, h.Name)
+}
+
+func (h Host) ProjectName() string {
+	return fmt.Sprintf("%s.%s", h.Project, h.Name)
 }
 
 func (h *Host) CompareTo(c linq.Comparable) int {
