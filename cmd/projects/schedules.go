@@ -575,9 +575,13 @@ func takeOwnership(h *client.Host, schedule ProjectPipelineSchedule,
 		wg.Unlock()
 		return
 	}
+	// revalidate cache
+	if schedule.Schedule, _, err = h.Client.PipelineSchedules.GetPipelineSchedule(schedule.Project.ID, v.ID, options...); err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return
+	}
 	wg.Unlock()
-
-	schedule.Schedule = v
 
 	data <- sort.Element{Host: h, Struct: schedule, Cached: false}
 }
