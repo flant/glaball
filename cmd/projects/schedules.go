@@ -173,7 +173,7 @@ func ListPipelineSchedulesCmd() error {
 	query.ToSlice(&results)
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
-	if _, err := fmt.Fprintf(w, "COUNT\tREPOSITORY\tSCHEDULES\tHOSTS\tCACHED\n"); err != nil {
+	if _, err := fmt.Fprintln(w, strings.Join(scheduleFormat.Keys(), "\t")); err != nil {
 		return err
 	}
 	unique := 0
@@ -182,24 +182,43 @@ func ListPipelineSchedulesCmd() error {
 	for _, r := range results {
 		unique++         // todo
 		total += r.Count //todo
-		schedules := make(Schedules, 0, len(r.Elements))
 		for _, v := range r.Elements.Typed() {
-			sched := v.Struct.(ProjectPipelineSchedule).Schedule
-			if sched != nil {
-				schedules = append(schedules, sched)
+			count := 0
+			scheduleDescription := "-"
+			pipelineStatus := "-"
+			owner := "-"
+
+			if s := v.Struct.(ProjectPipelineSchedule).Schedule; s != nil {
+				count = 1
+				owner = s.Owner.Username
+				if s.LastPipeline.Status == "" {
+					pipelineStatus = "unknown"
+				} else {
+					pipelineStatus = s.LastPipeline.Status
+
+				}
+				if s.Active {
+					scheduleDescription = fmt.Sprintf("%s (active)", s.Description)
+				} else {
+					scheduleDescription = fmt.Sprintf("%s (inactive)", s.Description)
+				}
 			}
-		}
-		if _, err := fmt.Fprintf(w, "[%d]\t%s\t[%s]\t%s\t[%s]\n",
-			len(schedules),
-			r.Key,
-			schedules.Descriptions(),
-			r.Elements.Hosts().Projects(common.Config.ShowAll),
-			r.Cached); err != nil {
-			return err
+
+			if err := scheduleFormat.Print(w, "\t",
+				count,
+				r.Key,
+				scheduleDescription,
+				pipelineStatus,
+				owner,
+				v.Host.ProjectName(),
+				r.Cached,
+			); err != nil {
+				return err
+			}
 		}
 	}
 
-	if _, err := fmt.Fprintf(w, "Unique: %d\nTotal: %d\nErrors: %d\n", unique, total, len(wg.Errors())); err != nil {
+	if err := totalFormat.Print(w, "\n", unique, total, len(wg.Errors())); err != nil {
 		return err
 	}
 
@@ -357,7 +376,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 		fmt.Printf("Setting cleanup schedules owner to %q in %s ...\n", ownerUser.Username, host.URL)
 		for _, v := range toChangeOwner.Typed() {
 			wg.Add(1)
-			go takeOwnership(v.Host, v.Struct.(ProjectPipelineSchedule), wg, changedOwner)
+			go takeOwnership(v.Host, v.Struct.(ProjectPipelineSchedule), wg, changedOwner, cacheFunc)
 		}
 
 		go func() {
