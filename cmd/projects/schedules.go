@@ -29,6 +29,7 @@ var (
 	cleanupPatterns              []string
 	cleanupDescriptions          []string
 	cleanupOwnerToken            string
+	cleanupCreate                bool
 	scheduleFormat               = util.Dict{
 		{
 			Key:   "COUNT",
@@ -132,6 +133,7 @@ func NewPipelineCleanupSchedulesCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&cleanupDescriptions, "description", []string{"(?i)cleanup"},
 		"List of regex patterns to search in pipelines schedules descriptions")
 	cmd.Flags().StringVar(&cleanupOwnerToken, "setowner", "", "Provide a private access token of a new owner with \"api\" scope to change ownership of cleanup schedules")
+	cmd.Flags().BoolVar(&cleanupCreate, "create", false, "Create werf cleanup schedules with owner token provided by --setowner flag")
 
 	// ListProjectsOptions
 	listProjectsOptionsFlags(cmd, &listProjectsPipelinesOptions)
@@ -236,6 +238,9 @@ func ListPipelineSchedulesCmd() error {
 func ListPipelineCleanupSchedulesCmd() error {
 	var ownerUser *gitlab.User
 	cacheFunc := common.Client.WithCache()
+	if cleanupCreate && cleanupOwnerToken == "" {
+		return fmt.Errorf("missing token, please provide personal access token with \"api\" scope")
+	}
 
 	if cleanupOwnerToken != "" {
 		switch len(common.Client.Hosts) {
@@ -342,49 +347,93 @@ func ListPipelineCleanupSchedulesCmd() error {
 	})
 
 	toChangeOwner := make(sort.Elements, 0)
+	toCreate := make(sort.Elements, 0)
 	if cleanupOwnerToken != "" && ownerUser != nil {
-		query = query.Where(func(i interface{}) bool {
-			for _, v := range i.(sort.Result).Elements.Typed() {
-				if s := v.Struct.(ProjectPipelineSchedule).Schedule; s != nil {
-					if s.Owner.ID == ownerUser.ID {
+		if !cleanupCreate {
+			query = query.Where(func(i interface{}) bool {
+				for _, v := range i.(sort.Result).Elements.Typed() {
+					if s := v.Struct.(ProjectPipelineSchedule).Schedule; s != nil {
+						if s.Owner.ID == ownerUser.ID {
+							return true
+						}
+						toChangeOwner = append(toChangeOwner, v)
+					}
+				}
+				return false
+			})
+		} else {
+			query = query.Where(func(i interface{}) bool {
+				for _, v := range i.(sort.Result).Elements.Typed() {
+					if s := v.Struct.(ProjectPipelineSchedule).Schedule; s == nil {
+						toCreate = append(toCreate, v)
 						return true
 					}
-					toChangeOwner = append(toChangeOwner, v)
 				}
-			}
-			return false
-		})
+				return false
+			})
+		}
 	}
 
 	query.ToSlice(&results)
 
 	if cleanupOwnerToken != "" && ownerUser != nil {
-		changedOwner := make(chan interface{})
+		data := make(chan interface{})
 		host := common.Client.Hosts[0]
-		if len(toChangeOwner) == 0 {
-			if len(results) == 0 {
-				return fmt.Errorf("no cleanup schedules found in gitlab %q",
+		if !cleanupCreate {
+			if len(toChangeOwner) == 0 {
+				if len(results) == 0 {
+					return fmt.Errorf("no cleanup schedules found in gitlab %q",
+						host.ProjectName())
+				}
+				return fmt.Errorf("all cleanup schedules are already owned by %q user in gitlab %q",
+					ownerUser.Username, host.ProjectName())
+			}
+
+			util.AskUser(fmt.Sprintf("Do you really want to change %d cleanup schedules owner to %q user in gitlab %q ?",
+				len(toChangeOwner), ownerUser.Username, host.ProjectName()))
+
+			fmt.Printf("Setting cleanup schedules owner to %q in %s ...\n", ownerUser.Username, host.URL)
+			for _, v := range toChangeOwner.Typed() {
+				wg.Add(1)
+				go takeOwnership(v.Host, v.Struct.(ProjectPipelineSchedule), wg, data, cacheFunc)
+			}
+
+		} else {
+			if len(toCreate) == 0 {
+				if len(results) == 0 {
+					return fmt.Errorf("no cleanup schedules need to create in gitlab %q",
+						host.ProjectName())
+				}
+				return fmt.Errorf("all cleanup schedules are already created in gitlab %q",
 					host.ProjectName())
 			}
-			return fmt.Errorf("all cleanup schedules are already owned by %q user in gitlab %q",
-				ownerUser.Username, host.ProjectName())
-		}
 
-		util.AskUser(fmt.Sprintf("Do you really want to change %d cleanup schedules owner to %q user in gitlab %q ?",
-			len(toChangeOwner), ownerUser.Username, host.ProjectName()))
+			util.AskUser(fmt.Sprintf("Do you really want to create %d cleanup schedules with owner %q user in gitlab %q ?",
+				len(toCreate), ownerUser.Username, host.ProjectName()))
 
-		fmt.Printf("Setting cleanup schedules owner to %q in %s ...\n", ownerUser.Username, host.URL)
-		for _, v := range toChangeOwner.Typed() {
-			wg.Add(1)
-			go takeOwnership(v.Host, v.Struct.(ProjectPipelineSchedule), wg, changedOwner, cacheFunc)
+			fmt.Printf("Creating cleanup schedules with owner %q in %s ...\n", ownerUser.Username, host.URL)
+			for i, v := range toCreate.Typed() {
+				wg.Add(1)
+
+				s := v.Struct.(ProjectPipelineSchedule)
+				targetRef := gitRef
+				if gitRef == "" {
+					targetRef = s.Project.DefaultBranch
+				}
+				go createPipelineSchedule(v.Host, s, gitlab.CreatePipelineScheduleOptions{
+					Description: gitlab.String("Cleanup"),
+					Ref:         &targetRef,
+					Cron:        gitlab.String(fmt.Sprintf("%d 1 * * *", i)),
+				}, wg, data, cacheFunc)
+			}
 		}
 
 		go func() {
 			wg.Wait()
-			close(changedOwner)
+			close(data)
 		}()
 
-		results = sort.FromChannel(changedOwner, &sort.Options{
+		results = sort.FromChannel(data, &sort.Options{
 			OrderBy:    []string{"project.web_url"},
 			StructType: ProjectPipelineSchedule{},
 		})
@@ -589,6 +638,30 @@ func takeOwnership(h *client.Host, schedule ProjectPipelineSchedule,
 	wg.Lock()
 	v, _, err := h.Client.PipelineSchedules.TakeOwnershipOfPipelineSchedule(
 		schedule.Project.ID, schedule.Schedule.ID, gitlab.WithToken(gitlab.PrivateToken, cleanupOwnerToken))
+	if err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return
+	}
+	// revalidate cache
+	if schedule.Schedule, _, err = h.Client.PipelineSchedules.GetPipelineSchedule(schedule.Project.ID, v.ID, options...); err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return
+	}
+	wg.Unlock()
+
+	data <- sort.Element{Host: h, Struct: schedule, Cached: false}
+}
+
+func createPipelineSchedule(h *client.Host, schedule ProjectPipelineSchedule, opt gitlab.CreatePipelineScheduleOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
+
+	defer wg.Done()
+
+	wg.Lock()
+	v, _, err := h.Client.PipelineSchedules.CreatePipelineSchedule(
+		schedule.Project.ID, &opt, gitlab.WithToken(gitlab.PrivateToken, cleanupOwnerToken))
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()

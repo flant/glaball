@@ -242,6 +242,22 @@ The command below displays a list of projects with inactive scheduled pipelines:
 $ glaball -f "main.*" projects pipelines schedules --active=false
 ```
 
+### List and create [werf](https://github.com/werf/werf) cleanup [schedules](https://werf.io/documentation/v1.2/advanced/ci_cd/gitlab_ci_cd.html#cleaning-up-images)
+List all cleanup schedules including non-existent:
+```
+$ glaball projects pipelines cleanups
+```
+
+Create cleanup schedules in all projects (only **one** gitlab host):
+```
+$ glaball projects pipelines cleanups -f "main.example-project.primary" --create --setowner ${WERF_IMAGES_CLEANUP_PASSWORD}
+```
+
+Change the owner of existing cleanup scheduled pipelines (only **one** gitlab host):
+```
+$ glaball projects pipelines cleanups -f "main.example-project.primary" --setowner ${WERF_IMAGES_CLEANUP_PASSWORD}
+```
+
 ### Search for a user
 ```
 $ glaball users search --by=username docker
