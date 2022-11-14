@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/spf13/cobra v1.6.1
-	github.com/spf13/viper v1.13.0
+	github.com/spf13/viper v1.14.0
 	github.com/xanzy/go-gitlab v0.74.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -36,9 +36,9 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
-	golang.org/x/net v0.1.0 // indirect
-	golang.org/x/oauth2 v0.1.0 // indirect
-	golang.org/x/sys v0.1.0 // indirect
+	golang.org/x/net v0.2.0 // indirect
+	golang.org/x/oauth2 v0.2.0 // indirect
+	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
@@ -50,6 +50,6 @@ require (
 require (
 	github.com/armon/go-radix v1.0.0
 	github.com/google/btree v1.1.2 // indirect
-	github.com/stretchr/testify v1.8.0
-	golang.org/x/time v0.1.0 // indirect
+	github.com/stretchr/testify v1.8.1
+	golang.org/x/time v0.2.0 // indirect
 )

@@ -24,6 +24,7 @@ Glaball currently supports the following features:
 * Displaying a list of users with sorting/grouping/filtering options (`users list`)
 * Searching for a specific user (`users search`)
 * Displaying a list of repositories with sorting/grouping/filtering options (`projects list`)
+* Editing some repository options (`projects edit`)
 * Searching for scheduled jobs in repositories and filtering by active/inactive status (`projects pipelines schedules`)
 * Searching for the regex pattern in the specified files in the repositories (`projects files search`)
 * Displaying a list of current GitLab instance versions with information on whether an update is necessary (up to date|update available|update asap)
@@ -225,6 +226,11 @@ $ glaball users block --by=username test-glaball
 Display the list of projects in which this user exists:
 ```
 $ glaball users block --by=username test-glaball --hosts
+```
+
+### Edit projects options
+```
+$ glaball projects edit --search_namespaces=true --search mygroup/ --ci_forward_deployment_enabled=false
 ```
 
 ### Search for a pattern in the files
