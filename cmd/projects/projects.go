@@ -10,6 +10,7 @@ func NewCmd() *cobra.Command {
 		Short: "Projects API",
 	}
 	cmd.AddCommand(
+		NewEditCmd(),
 		NewFilesCmd(),
 		NewListCmd(),
 		NewPipelinesCmd(),
