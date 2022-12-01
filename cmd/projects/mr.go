@@ -75,7 +75,7 @@ func NewMergeRequestListCmd() *cobra.Command {
 func MergeRequestsListCmd() error {
 	// sort namespaces in ascending order for fast search
 	go_sort.Slice(byNamespaces, func(i, j int) bool {
-		return byNamespaces[i] < byNamespaces[j]
+		return byNamespaces[i] <= byNamespaces[j]
 	})
 
 	// only active projects

@@ -42,3 +42,13 @@ func ContainsInt(slice []int, item int) bool {
 	}
 	return slice[idx] == item
 }
+
+func InsertString(slice []string, item string) []string {
+	if idx := sort.SearchStrings(slice, item); idx == len(slice) {
+		slice = append(slice, item)
+	} else {
+		slice = append(slice[:idx+1], slice[idx:]...)
+		slice[idx] = item
+	}
+	return slice
+}

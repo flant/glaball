@@ -6,11 +6,11 @@ import (
 	"net"
 	"net/http"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/flant/glaball/pkg/config"
+	"github.com/flant/glaball/pkg/util"
 	"github.com/gregjones/httpcache"
 
 	"github.com/ahmetb/go-linq"
@@ -36,12 +36,7 @@ func (a Hosts) Projects(all bool) []string {
 	s := make([]string, 0, k)
 	for _, h := range a[:k] {
 		n := h.ProjectName()
-		if idx := sort.SearchStrings(s, n); idx == len(s) {
-			s = append(s, n)
-		} else {
-			s = append(s[:idx+1], s[idx:]...)
-			s[idx] = n
-		}
+		s = util.InsertString(s, n)
 	}
 
 	if !all && k == 5 {

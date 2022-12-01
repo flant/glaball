@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	go_sort "sort"
 	"strings"
 	"text/tabwriter"
 
@@ -627,10 +626,9 @@ func (a Schedules) Descriptions() string {
 		if status == "" {
 			status = "unknown"
 		}
-		s = append(s, fmt.Sprintf("%s: %q (%s)", status, v.Description, active))
+		desc := fmt.Sprintf("%s: %q (%s)", status, v.Description, active)
+		s = util.InsertString(s, desc)
 	}
-
-	go_sort.Strings(s)
 
 	return strings.Join(s, ", ")
 }
