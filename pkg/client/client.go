@@ -120,7 +120,6 @@ func NewHttpClient(addresses map[string]string, cache *config.CacheOptions) (*ht
 			Cache:               diskCache,
 			MarkCachedResponses: true,
 		},
-		Timeout: 10 * time.Second,
 	}, nil
 
 }
