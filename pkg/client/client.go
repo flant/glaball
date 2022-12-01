@@ -35,9 +35,14 @@ func (a Hosts) Projects(all bool) []string {
 	}
 	s := make([]string, 0, k)
 	for _, h := range a[:k] {
-		s = append(s, h.ProjectName())
+		n := h.ProjectName()
+		if idx := sort.SearchStrings(s, n); idx == len(s) {
+			s = append(s, n)
+		} else {
+			s = append(s[:idx+1], s[idx:]...)
+			s[idx] = n
+		}
 	}
-	sort.Strings(s)
 
 	if !all && k == 5 {
 		s = append(s, "...")
