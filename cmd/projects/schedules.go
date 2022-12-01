@@ -11,6 +11,7 @@ import (
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/new_sort"
+	"github.com/flant/glaball/pkg/sort"
 	"github.com/flant/glaball/pkg/util"
 
 	"github.com/flant/glaball/cmd/common"
@@ -300,7 +301,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 		close(data)
 	}()
 
-	projectList := make(new_sort.Elements, 0)
+	projectList := make(sort.Elements, 0)
 	for e := range data {
 		projectList = append(projectList, e)
 	}
@@ -323,7 +324,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 		close(projectsCh)
 	}()
 
-	toList := make(new_sort.Elements, 0)
+	toList := make(sort.Elements, 0)
 	for e := range projectsCh {
 		toList = append(toList, e)
 	}
