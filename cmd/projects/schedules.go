@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	go_sort "sort"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
-	"github.com/flant/glaball/pkg/sort"
+	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
 
 	"github.com/flant/glaball/cmd/common"
@@ -167,10 +166,13 @@ func ListPipelineSchedulesCmd() error {
 	}()
 
 	var results []sort.Result
-	query := sort.FromChannelQuery(data, &sort.Options{
+	query, err := sort.FromChannelQuery(data, &sort.Options{
 		OrderBy:    []string{"project.web_url"},
 		StructType: ProjectPipelineSchedule{},
 	})
+	if err != nil {
+		return err
+	}
 
 	query.ToSlice(&results)
 
@@ -287,6 +289,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 	for _, h := range common.Client.Hosts {
 		fmt.Printf("Searching for cleanups in %s ...\n", h.URL)
 		wg.Add(1)
+
 		// files.go
 		go listProjectsFiles(h, ".gitlab-ci.yml", gitRef, any, listProjectsPipelinesOptions, wg, data, cacheFunc)
 	}
@@ -341,10 +344,13 @@ func ListPipelineCleanupSchedulesCmd() error {
 	}()
 
 	var results []sort.Result
-	query := sort.FromChannelQuery(schedules, &sort.Options{
+	query, err := sort.FromChannelQuery(schedules, &sort.Options{
 		OrderBy:    []string{"project.web_url"},
 		StructType: ProjectPipelineSchedule{},
 	})
+	if err != nil {
+		return err
+	}
 
 	toChangeOwner := make(sort.Elements, 0)
 	toCreate := make(sort.Elements, 0)
@@ -433,10 +439,13 @@ func ListPipelineCleanupSchedulesCmd() error {
 			close(data)
 		}()
 
-		results = sort.FromChannel(data, &sort.Options{
+		results, err = sort.FromChannel(data, &sort.Options{
 			OrderBy:    []string{"project.web_url"},
 			StructType: ProjectPipelineSchedule{},
 		})
+		if err != nil {
+			return err
+		}
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
@@ -617,10 +626,8 @@ func (a Schedules) Descriptions() string {
 		if status == "" {
 			status = "unknown"
 		}
-		s = append(s, fmt.Sprintf("%s: %q (%s)", status, v.Description, active))
+		s = util.InsertString(s, fmt.Sprintf("%s: %q (%s)", status, v.Description, active))
 	}
-
-	go_sort.Strings(s)
 
 	return strings.Join(s, ", ")
 }

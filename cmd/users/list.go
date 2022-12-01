@@ -8,7 +8,7 @@ import (
 
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
-	"github.com/flant/glaball/pkg/sort"
+	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
 
 	"github.com/flant/glaball/cmd/common"
@@ -23,8 +23,7 @@ var (
 	groupBy, sortBy string
 	orderBy         []string
 
-	listUsersOptions   = gitlab.ListUsersOptions{ListOptions: gitlab.ListOptions{PerPage: 100}}
-	userFieldIndexTree = sort.JsonFieldIndexTree(gitlab.User{})
+	listUsersOptions = gitlab.ListUsersOptions{ListOptions: gitlab.ListOptions{PerPage: 100}}
 )
 
 func NewListCmd() *cobra.Command {
@@ -43,7 +42,7 @@ func NewListCmd() *cobra.Command {
 		"Return users sorted in asc or desc order. Default is desc")
 
 	//"id", "name", "username", "email", "count"
-	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", "username"},
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", userDefaultField},
 		"Return users ordered by id, name, username, created_at, or updated_at fields.")
 
 	cmd.Flags().IntVar(&listCount, "count", 1, "Order by count")
@@ -103,6 +102,10 @@ The list of billable users is the total number of users minus the blocked users.
 }
 
 func List() error {
+	if !sort.ValidOrderBy(orderBy, gitlab.User{}) {
+		orderBy = append(orderBy, userDefaultField)
+	}
+
 	wg := common.Limiter
 	data := make(chan interface{})
 
@@ -117,12 +120,15 @@ func List() error {
 		close(data)
 	}()
 
-	results := sort.FromChannel(data, &sort.Options{
+	results, err := sort.FromChannel(data, &sort.Options{
 		OrderBy:    orderBy,
 		SortBy:     sortBy,
 		GroupBy:    groupBy,
 		StructType: gitlab.User{},
 	})
+	if err != nil {
+		return err
+	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
 	fmt.Fprintf(w, "COUNT\tUSER\tHOSTS\tCACHED\n")
@@ -192,7 +198,11 @@ func listUsersSearch(h *client.Host, key string, value *regexp.Regexp, opt gitla
 	wg.Unlock()
 
 	for _, v := range list {
-		s := sort.ValidFieldValue(userFieldIndexTree, []string{key}, v)
+		s, err := sort.ValidFieldValue([]string{key}, v)
+		if err != nil {
+			wg.Error(h, err)
+			return
+		}
 		// This will panic if value is not a string
 		if value.MatchString(s.(string)) {
 			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}

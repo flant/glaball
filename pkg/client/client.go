@@ -6,11 +6,11 @@ import (
 	"net"
 	"net/http"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/flant/glaball/pkg/config"
+	"github.com/flant/glaball/pkg/util"
 	"github.com/gregjones/httpcache"
 
 	"github.com/ahmetb/go-linq"
@@ -35,9 +35,8 @@ func (a Hosts) Projects(all bool) []string {
 	}
 	s := make([]string, 0, k)
 	for _, h := range a[:k] {
-		s = append(s, h.ProjectName())
+		s = util.InsertString(s, h.ProjectName())
 	}
-	sort.Strings(s)
 
 	if !all && k == 5 {
 		s = append(s, "...")
@@ -107,7 +106,6 @@ func NewHttpClient(addresses map[string]string, cache *config.CacheOptions) (*ht
 	if cache == nil || !cache.Enabled {
 		return &http.Client{
 			Transport: transport,
-			Timeout:   10 * time.Second,
 		}, nil
 	}
 

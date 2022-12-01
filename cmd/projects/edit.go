@@ -7,7 +7,7 @@ import (
 
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
-	"github.com/flant/glaball/pkg/sort"
+	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
 
 	"github.com/flant/glaball/cmd/common"
@@ -36,7 +36,7 @@ func NewEditCmd() *cobra.Command {
 	cmd.Flags().Var(util.NewEnumValue(&sortBy, "asc", "desc"), "sort",
 		"Return projects sorted in asc or desc order. Default is desc")
 
-	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", "web_url"},
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", projectDefaultField},
 		`Return projects ordered by id, name, path, created_at, updated_at, last_activity_at, or similarity fields.
 repository_size, storage_size, packages_size or wiki_size fields are only allowed for administrators.
 similarity (introduced in GitLab 14.1) is only available when searching and is limited to projects that the current user is a member of.`)
@@ -62,6 +62,10 @@ func editProjectsOptionsFlags(cmd *cobra.Command, opt *gitlab.EditProjectOptions
 }
 
 func Edit() error {
+	if !sort.ValidOrderBy(orderBy, gitlab.Project{}) {
+		orderBy = append(orderBy, projectDefaultField)
+	}
+
 	wg := common.Limiter
 	data := make(chan interface{})
 
@@ -97,12 +101,15 @@ func Edit() error {
 		close(projects)
 	}()
 
-	results := sort.FromChannel(projects, &sort.Options{
+	results, err := sort.FromChannel(projects, &sort.Options{
 		OrderBy:    orderBy,
 		SortBy:     sortBy,
 		GroupBy:    groupBy,
 		StructType: gitlab.Project{},
 	})
+	if err != nil {
+		return err
+	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
 	fmt.Fprintf(w, "COUNT\tREPOSITORY\tHOSTS\tCACHED\n")

@@ -8,7 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/flant/glaball/pkg/limiter"
-	"github.com/flant/glaball/pkg/sort"
+	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
 
 	"github.com/flant/glaball/cmd/common"
@@ -27,8 +27,6 @@ var (
 
 	outputFormat []string
 	byNamespaces []string
-
-	mrFieldIndexTree = sort.JsonFieldIndexTree(gitlab.MergeRequest{})
 )
 
 func NewMergeRequestsCmd() *cobra.Command {
@@ -63,7 +61,7 @@ func NewMergeRequestListCmd() *cobra.Command {
 	cmd.Flags().Var(util.NewEnumValue(&sortBy, "asc", "desc"), "sort",
 		"Return merge requests sorted in asc or desc order. Default is desc")
 
-	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", "web_url"},
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", projectDefaultField},
 		`Return requests ordered by web_url, created_at, title, updated_at or any nested field. Default is web_url. https://pkg.go.dev/github.com/xanzy/go-gitlab#MergeRequest`)
 
 	listProjectsOptionsFlags(cmd, &listProjectsOptions)
@@ -73,9 +71,13 @@ func NewMergeRequestListCmd() *cobra.Command {
 }
 
 func MergeRequestsListCmd() error {
+	if !sort.ValidOrderBy(orderBy, gitlab.Project{}) {
+		orderBy = append(orderBy, projectDefaultField)
+	}
+
 	// sort namespaces in ascending order for fast search
 	go_sort.Slice(byNamespaces, func(i, j int) bool {
-		return byNamespaces[i] < byNamespaces[j]
+		return byNamespaces[i] <= byNamespaces[j]
 	})
 
 	// only active projects
@@ -126,13 +128,14 @@ func MergeRequestsListCmd() error {
 		close(mergeRequests)
 	}()
 
-	var results []sort.Result
-	query := sort.FromChannelQuery(mergeRequests, &sort.Options{
+	results, err := sort.FromChannel(mergeRequests, &sort.Options{
 		OrderBy:    orderBy,
 		SortBy:     sortBy,
 		StructType: gitlab.MergeRequest{},
 	})
-	query.ToSlice(&results)
+	if err != nil {
+		return err
+	}
 
 	if len(results) == 0 {
 		return fmt.Errorf("no merge requests found")
@@ -287,7 +290,11 @@ func listMergeRequestsSearch(h *client.Host, project *gitlab.Project, key string
 	wg.Unlock()
 
 	for _, v := range list {
-		s := sort.ValidFieldValue(mrFieldIndexTree, []string{key}, v)
+		s, err := sort.ValidFieldValue([]string{key}, v)
+		if err != nil {
+			wg.Error(h, err)
+			return err
+		}
 		// This will panic if value is not a string
 		if value.MatchString(s.(string)) {
 			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}

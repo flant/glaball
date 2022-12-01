@@ -7,7 +7,7 @@ import (
 
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
-	"github.com/flant/glaball/pkg/sort"
+	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
 
 	"github.com/flant/glaball/cmd/common"
@@ -97,10 +97,13 @@ func Create() error {
 		close(data)
 	}()
 
-	results := sort.FromChannel(data, &sort.Options{
+	results, err := sort.FromChannel(data, &sort.Options{
 		OrderBy:    []string{"username"},
 		StructType: gitlab.User{},
 	})
+	if err != nil {
+		return err
+	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
 	fmt.Fprintf(w, "COUNT\tUSER\tHOSTS\tCACHED\n")

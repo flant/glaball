@@ -7,7 +7,7 @@ import (
 
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
-	"github.com/flant/glaball/pkg/sort"
+	"github.com/flant/glaball/pkg/sort/v2"
 
 	"github.com/flant/glaball/cmd/common"
 
@@ -47,12 +47,15 @@ func Whoami() error {
 	fmt.Fprintf(w, "COUNT\tUSER\tHOSTS\tCACHED\n")
 	total := 0
 
-	results := sort.FromChannel(data, &sort.Options{
+	results, err := sort.FromChannel(data, &sort.Options{
 		OrderBy:    []string{"username"},
 		SortBy:     "desc",
 		GroupBy:    "",
 		StructType: gitlab.User{},
 	})
+	if err != nil {
+		return err
+	}
 
 	for _, v := range results {
 		total += v.Count //todo

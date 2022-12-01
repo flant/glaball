@@ -10,7 +10,7 @@ import (
 
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
-	"github.com/flant/glaball/pkg/sort"
+	"github.com/flant/glaball/pkg/sort/v2"
 
 	"github.com/flant/glaball/cmd/common"
 
@@ -92,12 +92,15 @@ func Search() error {
 		close(data)
 	}()
 
-	results := sort.FromChannel(data, &sort.Options{
+	results, err := sort.FromChannel(data, &sort.Options{
 		OrderBy:    []string{"project.web_url"},
 		SortBy:     "desc",
 		GroupBy:    "",
 		StructType: ProjectFile{},
 	})
+	if err != nil {
+		return err
+	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
 	fmt.Fprintf(w, "COUNT\tREPOSITORY\tHOSTS\tCACHED\n")
@@ -166,12 +169,15 @@ func SearchRegexp() error {
 		close(data)
 	}()
 
-	results := sort.FromChannel(data, &sort.Options{
+	results, err := sort.FromChannel(data, &sort.Options{
 		OrderBy:    []string{"web_url"},
 		SortBy:     "desc",
 		GroupBy:    "",
 		StructType: gitlab.Project{},
 	})
+	if err != nil {
+		return err
+	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
 	fmt.Fprintf(w, "COUNT\tREPOSITORY\tHOSTS\tCACHED\n")

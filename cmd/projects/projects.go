@@ -4,6 +4,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	projectDefaultField = "web_url"
+)
+
 func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "projects",
