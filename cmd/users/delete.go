@@ -104,10 +104,13 @@ func Delete() error {
 		close(deleted)
 	}()
 
-	results := sort.FromChannel(deleted, &sort.Options{
+	results, err := sort.FromChannel(deleted, &sort.Options{
 		OrderBy:    []string{deleteBy},
 		StructType: gitlab.User{},
 	})
+	if err != nil {
+		return err
+	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
 	fmt.Fprintf(w, "COUNT\tUSER\tHOSTS\tCACHED\n")

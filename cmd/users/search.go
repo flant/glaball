@@ -59,10 +59,13 @@ func Search() error {
 		close(data)
 	}()
 
-	results := sort.FromChannel(data, &sort.Options{
+	results, err := sort.FromChannel(data, &sort.Options{
 		OrderBy:    []string{searchBy},
 		StructType: gitlab.User{},
 	})
+	if err != nil {
+		return err
+	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
 	fmt.Fprintf(w, "COUNT\tUSER\tHOSTS\tCACHED\n")

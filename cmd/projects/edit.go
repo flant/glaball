@@ -97,12 +97,15 @@ func Edit() error {
 		close(projects)
 	}()
 
-	results := sort.FromChannel(projects, &sort.Options{
+	results, err := sort.FromChannel(projects, &sort.Options{
 		OrderBy:    orderBy,
 		SortBy:     sortBy,
 		GroupBy:    groupBy,
 		StructType: gitlab.Project{},
 	})
+	if err != nil {
+		return err
+	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
 	fmt.Fprintf(w, "COUNT\tREPOSITORY\tHOSTS\tCACHED\n")

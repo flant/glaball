@@ -10,7 +10,6 @@ import (
 
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
-	"github.com/flant/glaball/pkg/new_sort"
 	"github.com/flant/glaball/pkg/sort"
 	"github.com/flant/glaball/pkg/util"
 
@@ -167,8 +166,8 @@ func ListPipelineSchedulesCmd() error {
 		close(data)
 	}()
 
-	var results []new_sort.Result
-	query, err := new_sort.FromChannelQuery(data, &new_sort.Options{
+	var results []sort.Result
+	query, err := sort.FromChannelQuery(data, &sort.Options{
 		OrderBy:    []string{"project.web_url"},
 		StructType: ProjectPipelineSchedule{},
 	})
@@ -345,8 +344,8 @@ func ListPipelineCleanupSchedulesCmd() error {
 		close(schedules)
 	}()
 
-	var results []new_sort.Result
-	query, err := new_sort.FromChannelQuery(schedules, &new_sort.Options{
+	var results []sort.Result
+	query, err := sort.FromChannelQuery(schedules, &sort.Options{
 		OrderBy:    []string{"project.web_url"},
 		StructType: ProjectPipelineSchedule{},
 	})
@@ -354,12 +353,12 @@ func ListPipelineCleanupSchedulesCmd() error {
 		return err
 	}
 
-	toChangeOwner := make(new_sort.Elements, 0)
-	toCreate := make(new_sort.Elements, 0)
+	toChangeOwner := make(sort.Elements, 0)
+	toCreate := make(sort.Elements, 0)
 	if cleanupOwnerToken != "" && ownerUser != nil {
 		if !cleanupCreate {
 			query = query.Where(func(i interface{}) bool {
-				for _, v := range i.(new_sort.Result).Elements.Typed() {
+				for _, v := range i.(sort.Result).Elements.Typed() {
 					if s := v.Struct.(ProjectPipelineSchedule).Schedule; s != nil {
 						if s.Owner.ID == ownerUser.ID {
 							return true
@@ -371,7 +370,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 			})
 		} else {
 			query = query.Where(func(i interface{}) bool {
-				for _, v := range i.(new_sort.Result).Elements.Typed() {
+				for _, v := range i.(sort.Result).Elements.Typed() {
 					if s := v.Struct.(ProjectPipelineSchedule).Schedule; s == nil {
 						toCreate = append(toCreate, v)
 						return true
@@ -441,7 +440,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 			close(data)
 		}()
 
-		results, err = new_sort.FromChannel(data, &new_sort.Options{
+		results, err = sort.FromChannel(data, &sort.Options{
 			OrderBy:    []string{"project.web_url"},
 			StructType: ProjectPipelineSchedule{},
 		})
@@ -568,7 +567,7 @@ filter:
 		// if no schedules were found and no --active flag value was provided
 		// return project with nil schedule
 		if active == nil && status == nil {
-			data <- new_sort.Element{
+			data <- sort.Element{
 				Host:   h,
 				Struct: ProjectPipelineSchedule{project, nil},
 				Cached: resp.Header.Get("X-From-Cache") == "1"}
@@ -592,7 +591,7 @@ filter:
 				continue
 			}
 			// push result to channel
-			data <- new_sort.Element{
+			data <- sort.Element{
 				Host:   h,
 				Struct: ProjectPipelineSchedule{project, v},
 				Cached: resp.Header.Get("X-From-Cache") == "1"}
@@ -662,7 +661,7 @@ func takeOwnership(h *client.Host, schedule ProjectPipelineSchedule,
 	}
 	wg.Unlock()
 
-	data <- new_sort.Element{Host: h, Struct: schedule, Cached: false}
+	data <- sort.Element{Host: h, Struct: schedule, Cached: false}
 }
 
 func createPipelineSchedule(h *client.Host, schedule ProjectPipelineSchedule, opt gitlab.CreatePipelineScheduleOptions,
@@ -686,5 +685,5 @@ func createPipelineSchedule(h *client.Host, schedule ProjectPipelineSchedule, op
 	}
 	wg.Unlock()
 
-	data <- new_sort.Element{Host: h, Struct: schedule, Cached: false}
+	data <- sort.Element{Host: h, Struct: schedule, Cached: false}
 }

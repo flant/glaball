@@ -48,14 +48,15 @@ func TestSearch(t *testing.T) {
 		close(data)
 	}()
 
-	results := sort.FromChannel(data, &sort.Options{
+	results, err := sort.FromChannel(data, &sort.Options{
 		OrderBy:    []string{searchBy},
 		StructType: gitlab.User{},
 	})
+	assert.NoError(t, err)
 
 	var user gitlab.User
 
-	err := json.Unmarshal([]byte(`{
+	err = json.Unmarshal([]byte(`{
 		"id": 122,
 		"username": "testuser2",
 		"name": "Test User 2",

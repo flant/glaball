@@ -126,13 +126,14 @@ func MergeRequestsListCmd() error {
 		close(mergeRequests)
 	}()
 
-	var results []sort.Result
-	query := sort.FromChannelQuery(mergeRequests, &sort.Options{
+	results, err := sort.FromChannel(mergeRequests, &sort.Options{
 		OrderBy:    orderBy,
 		SortBy:     sortBy,
 		StructType: gitlab.MergeRequest{},
 	})
-	query.ToSlice(&results)
+	if err != nil {
+		return err
+	}
 
 	if len(results) == 0 {
 		return fmt.Errorf("no merge requests found")

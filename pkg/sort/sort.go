@@ -2,18 +2,25 @@ package sort
 
 import (
 	"fmt"
-
-	"github.com/flant/glaball/pkg/client"
+	"reflect"
 
 	"github.com/ahmetb/go-linq"
+	"github.com/flant/glaball/pkg/client"
+	"github.com/jmoiron/sqlx/reflectx"
 )
 
 var (
-	// We use negative values because these fields don't exist in any struct
-	byHost   = FieldIndex{-1, 3}
-	byLen    = FieldIndex{-1, 2}
-	empty    = FieldIndex{-1, 1}
-	notFound = FieldIndex{-1, 0}
+	mapper = reflectx.NewMapper("json")
+
+	byHostFI = reflectx.FieldInfo{
+		Path: "host",
+		Name: "host",
+	}
+
+	byLenFI = reflectx.FieldInfo{
+		Path: "count",
+		Name: "count",
+	}
 )
 
 type Options struct {
@@ -72,66 +79,67 @@ func (e Elements) Typed() []Element {
 	return s
 }
 
-func FromChannel(ch chan interface{}, opt *Options) (results []Result) {
-	FromChannelQuery(ch, opt).ToSlice(&results)
-	return results
+func FromChannel(ch chan interface{}, opt *Options) ([]Result, error) {
+	results := make([]Result, 0)
+	query, err := FromChannelQuery(ch, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	query.ToSlice(&results)
+
+	return results, nil
 }
 
-func FromChannelQuery(ch chan interface{}, opt *Options) linq.Query {
-	var orderedQuery linq.OrderedQuery
-	// Initialize GroupBy key with `empty` value
-	groupBy := empty
-	// Initialize _first_ OrderBy key with `empty` value
-	first := empty
+func FromChannelQuery(ch chan interface{}, opt *Options) (linq.Query, error) {
+	var (
+		query        linq.Query
+		orderedQuery linq.OrderedQuery
+		groupBy      *reflectx.FieldInfo
+		first        *reflectx.FieldInfo
+	)
 
-	// Create `json` tag names tree of current struct fields
-	// to get their values fast (by index)
-	t := JsonFieldIndexTree(opt.StructType)
-	// Add some additional fields
-	t.Insert("host", byHost)
-	t.Insert("count", byLen)
+	query = linq.FromChannel(ch)
+	m := mapper.TypeMap(reflect.TypeOf(opt.StructType))
+	m.Paths[byHostFI.Name] = &byHostFI
+	m.Names[byHostFI.Name] = &byHostFI
+	m.Paths[byLenFI.Path] = &byLenFI
+	m.Names[byLenFI.Name] = &byLenFI
 
-	query := linq.FromChannel(ch)
-	if opt.GroupBy != "" {
-		groupBy = notFound
-		// Set GroupBy key to some field name if struct has it
-		if v, ok := t.Get(opt.GroupBy); ok {
-			groupBy = v.(FieldIndex)
+	if f := opt.GroupBy; f != "" {
+		groupBy = m.GetByPath(f)
+		if groupBy == nil {
+			return linq.Query{}, fmt.Errorf("invalid struct field: %s", f)
 		}
 		query = query.GroupBy(GroupBy(groupBy))
+
 	}
 
-	if opt.OrderBy != nil {
-		first = notFound
-		// Set _first_ OrderBy key to some field name if struct has it
-		if v, ok := t.Get(opt.OrderBy[0]); ok {
-			first = v.(FieldIndex)
+	if f := opt.OrderBy; f != nil {
+		first = m.GetByPath(f[0])
+		if first == nil {
+			return linq.Query{}, fmt.Errorf("invalid struct field: %s", f[0])
 		}
 	}
 
-	switch o := opt; {
-	case o.GroupBy != "" && o.OrderBy[0] == "count":
-		orderedQuery = query.OrderBy(ByLen())                 // Order by count first if it is declared
-		orderedQuery = orderedQuery.ThenByDescending(ByKey()) // and then by GroupBy key
-	default:
-		orderedQuery = query.OrderByDescending(OrderBy(groupBy, first)) // Otherwise use GroupBy key and _first_ OrderBy key
+	orderedQuery = query.OrderByDescending(OrderBy(groupBy, first))
+
+	if groupBy != nil && first != nil && first.Name == byLenFI.Name {
+		orderedQuery = query.OrderBy(ByLen())
+		orderedQuery = orderedQuery.ThenByDescending(ByKey())
 	}
 
-	// Add additional order if we have other OrderBy keys
 	for _, key := range opt.OrderBy[1:] {
-		idx := notFound
-		if v, ok := t.Get(key); ok {
-			idx = v.(FieldIndex)
+		v := m.GetByPath(key)
+		if v == nil {
+			return linq.Query{}, fmt.Errorf("invalid struct field: %s", key)
 		}
-		orderedQuery = orderedQuery.ThenByDescending(OrderBy(groupBy, idx))
+		orderedQuery = orderedQuery.ThenByDescending(OrderBy(groupBy, v))
 	}
 
-	// Set ascending or descending order. Default is descending.
-	switch opt.SortBy {
-	case "asc":
+	query = orderedQuery.Query
+	if opt.SortBy == "asc" {
 		query = orderedQuery.Reverse()
-	default:
-		query = orderedQuery.Query
 	}
 
 	query = query.Select(func(i interface{}) interface{} {
@@ -140,11 +148,17 @@ func FromChannelQuery(ch chan interface{}, opt *Options) linq.Query {
 		case Element:
 			var key interface{}
 			// Use specific key if we want to order results by host project name
-			switch opt.OrderBy[0] {
-			case "host":
+			switch first.Name {
+			case byHostFI.Name:
 				key = v.Host.Project
 			default:
-				key = ValidFieldValue(t, opt.OrderBy, v.Struct)
+				rv := reflect.ValueOf(v.Struct)
+				for _, k := range opt.OrderBy {
+					key = reflectx.FieldByIndexesReadOnly(rv, m.GetByPath(k).Index).Interface()
+					if key != nil && key != v.Struct {
+						break
+					}
+				}
 			}
 			return Result{
 				Count:    1, // Count of single element is always 1
@@ -164,31 +178,25 @@ func FromChannelQuery(ch chan interface{}, opt *Options) linq.Query {
 		}
 	})
 
-	return query
+	return query, nil
 }
 
-func GroupBy(groupBy FieldIndex) (func(i interface{}) interface{}, func(i interface{}) interface{}) {
+func GroupBy(groupBy *reflectx.FieldInfo) (func(i interface{}) interface{}, func(i interface{}) interface{}) {
 	return func(i interface{}) interface{} {
-			return FieldIndexValue(groupBy, i.(Element).Struct)
+			return reflectx.FieldByIndexesReadOnly(reflect.ValueOf(i.(Element).Struct), groupBy.Index).Interface()
 		},
 		func(i interface{}) interface{} { return i }
 }
 
-func OrderBy(groupBy, orderBy FieldIndex) func(i interface{}) interface{} {
-	switch v := orderBy; {
-	case v.Equal(byHost):
+func OrderBy(groupBy, orderBy *reflectx.FieldInfo) func(i interface{}) interface{} {
+	if orderBy.Name == byHostFI.Name {
 		// Return Host.Project name
 		return ByHost()
-	case v.Equal(byLen):
+	}
+
+	if orderBy.Name == byLenFI.Name {
 		// Return length of the group if we have GroupBy key
-		if !groupBy.Equal(empty) {
-			return ByLen()
-		}
-		// Return count == 1 if we don't have any groups
-		return func(i interface{}) interface{} { return 1 }
-	case orderBy.Equal(notFound):
-		// Return length of the group if we have GroupBy key
-		if !groupBy.Equal(empty) {
+		if groupBy != nil {
 			return ByLen()
 		}
 		// Return count == 1 if we don't have any groups
@@ -196,7 +204,7 @@ func OrderBy(groupBy, orderBy FieldIndex) func(i interface{}) interface{} {
 	}
 
 	// Order by GroupBy key if it exists
-	if !groupBy.Equal(empty) {
+	if groupBy != nil {
 		return ByKey()
 	}
 
@@ -226,12 +234,12 @@ func ByHost() func(i interface{}) interface{} {
 }
 
 // Order by the field
-func ByFieldIndex(n FieldIndex) func(i interface{}) interface{} {
+func ByFieldIndex(fi *reflectx.FieldInfo) func(i interface{}) interface{} {
 	return func(i interface{}) interface{} {
 		if v, ok := i.(Element); ok {
-			return FieldIndexValue(n, v.Struct)
+			return reflectx.FieldByIndexesReadOnly(reflect.ValueOf(v.Struct), fi.Index).Interface()
 		}
 
-		return FieldIndexValue(n, i)
+		return reflectx.FieldByIndexesReadOnly(reflect.ValueOf(i), fi.Index).Interface()
 	}
 }

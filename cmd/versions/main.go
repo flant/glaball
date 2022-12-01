@@ -66,12 +66,15 @@ func Versions() error {
 	fmt.Fprintf(w, "HOST\tURL\tVERSION\tSTATUS\n")
 	total := 0
 
-	results := sort.FromChannel(data, &sort.Options{
+	results, err := sort.FromChannel(data, &sort.Options{
 		OrderBy:    []string{"host"},
 		SortBy:     "asc",
 		GroupBy:    "",
 		StructType: VersionCheck{},
 	})
+	if err != nil {
+		return err
+	}
 
 	for _, v := range results {
 		total++

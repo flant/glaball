@@ -120,10 +120,13 @@ func Modify() error {
 		close(modified)
 	}()
 
-	results := sort.FromChannel(modified, &sort.Options{
+	results, err := sort.FromChannel(modified, &sort.Options{
 		OrderBy:    []string{modifyBy},
 		StructType: gitlab.User{},
 	})
+	if err != nil {
+		return err
+	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
 	fmt.Fprintf(w, "COUNT\tUSER\tHOSTS\tCACHED\n")
