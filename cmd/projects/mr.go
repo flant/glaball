@@ -27,8 +27,6 @@ var (
 
 	outputFormat []string
 	byNamespaces []string
-
-	mrFieldIndexTree = sort.JsonFieldIndexTree(gitlab.MergeRequest{})
 )
 
 func NewMergeRequestsCmd() *cobra.Command {
@@ -288,7 +286,11 @@ func listMergeRequestsSearch(h *client.Host, project *gitlab.Project, key string
 	wg.Unlock()
 
 	for _, v := range list {
-		s := sort.ValidFieldValue(mrFieldIndexTree, []string{key}, v)
+		s, err := sort.ValidFieldValue([]string{key}, v)
+		if err != nil {
+			wg.Error(h, err)
+			return err
+		}
 		// This will panic if value is not a string
 		if value.MatchString(s.(string)) {
 			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}

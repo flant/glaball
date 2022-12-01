@@ -152,13 +152,11 @@ func FromChannelQuery(ch chan interface{}, opt *Options) (linq.Query, error) {
 			case byHostFI.Name:
 				key = v.Host.Project
 			default:
-				rv := reflect.ValueOf(v.Struct)
-				for _, k := range opt.OrderBy {
-					key = reflectx.FieldByIndexesReadOnly(rv, m.GetByPath(k).Index).Interface()
-					if key != nil && key != v.Struct {
-						break
-					}
+				v, err := ValidFieldValue(opt.OrderBy, v.Struct)
+				if err != nil {
+					return nil
 				}
+				key = v
 			}
 			return Result{
 				Count:    1, // Count of single element is always 1

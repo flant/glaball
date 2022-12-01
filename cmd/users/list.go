@@ -23,8 +23,7 @@ var (
 	groupBy, sortBy string
 	orderBy         []string
 
-	listUsersOptions   = gitlab.ListUsersOptions{ListOptions: gitlab.ListOptions{PerPage: 100}}
-	userFieldIndexTree = sort.JsonFieldIndexTree(gitlab.User{})
+	listUsersOptions = gitlab.ListUsersOptions{ListOptions: gitlab.ListOptions{PerPage: 100}}
 )
 
 func NewListCmd() *cobra.Command {
@@ -195,7 +194,11 @@ func listUsersSearch(h *client.Host, key string, value *regexp.Regexp, opt gitla
 	wg.Unlock()
 
 	for _, v := range list {
-		s := sort.ValidFieldValue(userFieldIndexTree, []string{key}, v)
+		s, err := sort.ValidFieldValue([]string{key}, v)
+		if err != nil {
+			wg.Error(h, err)
+			return
+		}
 		// This will panic if value is not a string
 		if value.MatchString(s.(string)) {
 			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
