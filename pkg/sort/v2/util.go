@@ -19,3 +19,13 @@ func ValidFieldValue(keys []string, v interface{}) (interface{}, error) {
 	}
 	return nil, fmt.Errorf("field not found: %q: %q", keys, rv.Type())
 }
+
+func ValidOrderBy(keys []string, v interface{}) bool {
+	m := mapper.TypeMap(reflect.TypeOf(v))
+	for _, k := range keys {
+		if fi := m.GetByPath(k); fi != nil {
+			return true
+		}
+	}
+	return false
+}

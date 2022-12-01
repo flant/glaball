@@ -146,17 +146,9 @@ func FromChannelQuery(ch chan interface{}, opt *Options) (linq.Query, error) {
 		// Check if we have a group or single element
 		switch v := i.(type) {
 		case Element:
-			var key interface{}
-			// Use specific key if we want to order results by host project name
-			switch first.Name {
-			case byHostFI.Name:
-				key = v.Host.Project
-			default:
-				v, err := ValidFieldValue(opt.OrderBy, v.Struct)
-				if err != nil {
-					return nil
-				}
-				key = v
+			key, err := ValidFieldValue(opt.OrderBy, v.Struct)
+			if err != nil {
+				return nil
 			}
 			return Result{
 				Count:    1, // Count of single element is always 1

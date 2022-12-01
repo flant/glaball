@@ -4,6 +4,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	userDefaultField = "username"
+)
+
 func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "users",

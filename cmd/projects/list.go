@@ -38,7 +38,7 @@ func NewListCmd() *cobra.Command {
 	cmd.Flags().Var(util.NewEnumValue(&sortBy, "asc", "desc"), "sort",
 		"Return projects sorted in asc or desc order. Default is desc")
 
-	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", "web_url"},
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", projectDefaultField},
 		`Return projects ordered by id, name, path, created_at, updated_at, last_activity_at, or similarity fields.
 repository_size, storage_size, packages_size or wiki_size fields are only allowed for administrators.
 similarity (introduced in GitLab 14.1) is only available when searching and is limited to projects that the current user is a member of.`)
@@ -114,6 +114,10 @@ Available in GitLab Premium self-managed, GitLab Premium SaaS, and higher tiers.
 }
 
 func List() error {
+	if !sort.ValidOrderBy(orderBy, gitlab.Project{}) {
+		orderBy = append(orderBy, projectDefaultField)
+	}
+
 	wg := common.Limiter
 	data := make(chan interface{})
 

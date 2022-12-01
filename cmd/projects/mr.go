@@ -61,7 +61,7 @@ func NewMergeRequestListCmd() *cobra.Command {
 	cmd.Flags().Var(util.NewEnumValue(&sortBy, "asc", "desc"), "sort",
 		"Return merge requests sorted in asc or desc order. Default is desc")
 
-	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", "web_url"},
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", projectDefaultField},
 		`Return requests ordered by web_url, created_at, title, updated_at or any nested field. Default is web_url. https://pkg.go.dev/github.com/xanzy/go-gitlab#MergeRequest`)
 
 	listProjectsOptionsFlags(cmd, &listProjectsOptions)
@@ -71,6 +71,10 @@ func NewMergeRequestListCmd() *cobra.Command {
 }
 
 func MergeRequestsListCmd() error {
+	if !sort.ValidOrderBy(orderBy, gitlab.Project{}) {
+		orderBy = append(orderBy, projectDefaultField)
+	}
+
 	// sort namespaces in ascending order for fast search
 	go_sort.Slice(byNamespaces, func(i, j int) bool {
 		return byNamespaces[i] <= byNamespaces[j]

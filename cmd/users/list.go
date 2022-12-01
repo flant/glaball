@@ -42,7 +42,7 @@ func NewListCmd() *cobra.Command {
 		"Return users sorted in asc or desc order. Default is desc")
 
 	//"id", "name", "username", "email", "count"
-	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", "username"},
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", userDefaultField},
 		"Return users ordered by id, name, username, created_at, or updated_at fields.")
 
 	cmd.Flags().IntVar(&listCount, "count", 1, "Order by count")
@@ -102,6 +102,10 @@ The list of billable users is the total number of users minus the blocked users.
 }
 
 func List() error {
+	if !sort.ValidOrderBy(orderBy, gitlab.User{}) {
+		orderBy = append(orderBy, userDefaultField)
+	}
+
 	wg := common.Limiter
 	data := make(chan interface{})
 
