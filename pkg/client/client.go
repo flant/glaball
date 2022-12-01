@@ -107,7 +107,6 @@ func NewHttpClient(addresses map[string]string, cache *config.CacheOptions) (*ht
 	if cache == nil || !cache.Enabled {
 		return &http.Client{
 			Transport: transport,
-			Timeout:   10 * time.Second,
 		}, nil
 	}
 
