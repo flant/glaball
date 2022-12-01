@@ -3,6 +3,7 @@ package sort
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/ahmetb/go-linq"
 	"github.com/flant/glaball/pkg/client"
@@ -209,7 +210,7 @@ func ByLen() func(i interface{}) interface{} {
 
 // Order by GroupBy key
 func ByKey() func(i interface{}) interface{} {
-	return func(i interface{}) interface{} { return i.(linq.Group).Key }
+	return func(i interface{}) interface{} { return strings.ToLower(fmt.Sprint(i.(linq.Group).Key)) }
 }
 
 // Order by Host.Project key
@@ -227,9 +228,9 @@ func ByHost() func(i interface{}) interface{} {
 func ByFieldIndex(fi *reflectx.FieldInfo) func(i interface{}) interface{} {
 	return func(i interface{}) interface{} {
 		if v, ok := i.(Element); ok {
-			return reflectx.FieldByIndexesReadOnly(reflect.ValueOf(v.Struct), fi.Index).Interface()
+			return strings.ToLower(fmt.Sprint(reflectx.FieldByIndexesReadOnly(reflect.ValueOf(v.Struct), fi.Index).Interface()))
 		}
 
-		return reflectx.FieldByIndexesReadOnly(reflect.ValueOf(i), fi.Index).Interface()
+		return strings.ToLower(fmt.Sprint(reflectx.FieldByIndexesReadOnly(reflect.ValueOf(i), fi.Index).Interface()))
 	}
 }
