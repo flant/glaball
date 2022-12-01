@@ -35,8 +35,7 @@ func (a Hosts) Projects(all bool) []string {
 	}
 	s := make([]string, 0, k)
 	for _, h := range a[:k] {
-		n := h.ProjectName()
-		s = util.InsertString(s, n)
+		s = util.InsertString(s, h.ProjectName())
 	}
 
 	if !all && k == 5 {

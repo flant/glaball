@@ -626,8 +626,7 @@ func (a Schedules) Descriptions() string {
 		if status == "" {
 			status = "unknown"
 		}
-		desc := fmt.Sprintf("%s: %q (%s)", status, v.Description, active)
-		s = util.InsertString(s, desc)
+		s = util.InsertString(s, fmt.Sprintf("%s: %q (%s)", status, v.Description, active))
 	}
 
 	return strings.Join(s, ", ")
