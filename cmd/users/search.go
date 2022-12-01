@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"text/tabwriter"
 
-	"github.com/flant/glaball/pkg/sort"
+	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
 
 	"github.com/flant/glaball/cmd/common"
