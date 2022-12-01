@@ -23,11 +23,6 @@ var (
 	}
 )
 
-type Query struct {
-	ch      chan interface{}
-	options *Options
-}
-
 type Options struct {
 	SortBy, GroupBy string
 
