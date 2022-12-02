@@ -26,8 +26,8 @@ var (
 )
 
 type VersionCheck struct {
-	Version     string
-	CheckResult string
+	Version     string `json:"version"`
+	CheckResult string `json:"check_result"`
 }
 
 type VersionCheckResponse struct {
@@ -67,7 +67,7 @@ func Versions() error {
 	total := 0
 
 	results, err := sort.FromChannel(data, &sort.Options{
-		OrderBy:    []string{"host"},
+		OrderBy:    []string{"host", "version"},
 		SortBy:     "asc",
 		GroupBy:    "",
 		StructType: VersionCheck{},
