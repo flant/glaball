@@ -11,6 +11,7 @@ import (
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/flant/glaball/cmd/common"
 
@@ -233,18 +234,17 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 
 	defer wg.Done()
 
-	wg.Lock()
 	targetRef := ref
 	if ref == "" {
 		targetRef = project.DefaultBranch
 	}
+	wg.Lock()
 	raw, resp, err := h.Client.RepositoryFiles.GetRawFile(project.ID, filepath, &gitlab.GetRawFileOptions{Ref: &targetRef}, options...)
+	wg.Unlock()
 	if err != nil {
 		hclog.L().Named("files").Trace("get raw file error", "project", project.WebURL, "error", err)
-		wg.Unlock()
 		return
 	}
-	wg.Unlock()
 
 	for _, r := range re {
 		if r.Match(raw) {
@@ -254,6 +254,96 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 			return
 		}
 	}
+}
+
+func getGitlabCIFile(h *client.Host, project *gitlab.Project, filepath, ref string, re []*regexp.Regexp,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
+
+	var (
+		raw  []byte
+		resp *gitlab.Response
+		err  error
+	)
+
+	defer wg.Done()
+
+	if filepath == "" {
+		filepath = ".gitlab-ci.yml"
+	}
+	if ref == "" {
+		ref = project.DefaultBranch
+	}
+
+	wg.Lock()
+	raw, resp, err = h.Client.RepositoryFiles.GetRawFile(project.ID, filepath, &gitlab.GetRawFileOptions{Ref: &ref}, options...)
+	wg.Unlock()
+	if err != nil {
+		hclog.L().Named("files").Trace("get raw file error", "project", project.WebURL, "error", err)
+		return
+	}
+
+	for _, r := range re {
+		if r.Match(raw) {
+			data <- sort.Element{Host: h, Struct: &ProjectFile{Project: project, Raw: raw}, Cached: resp.Header.Get("X-From-Cache") == "1"}
+			hclog.L().Named("files").Trace("search pattern was found in file", "team", h.Team, "project", h.Project, "host", h.URL,
+				"repo", project.WebURL, "file", filepath, "pattern", r.String(), "content", hclog.Fmt("%s", raw))
+			return
+		}
+	}
+
+	var m map[string]interface{}
+	if err := yaml.Unmarshal(raw, &m); err != nil {
+		hclog.L().Named("files").Error("error decoding yaml", "team", h.Team, "project", h.Project, "host", h.URL,
+			"repo", project.WebURL, "file", filepath, "content", hclog.Fmt("%s", raw), "error", err)
+		return
+	}
+
+	if inc, ok := m["include"]; ok {
+		for _, p := range inc.([]interface{}) {
+			pid, ok := p.(map[string]interface{})["project"].(string)
+			if !ok {
+				wg.Error(h, fmt.Errorf("missing project in include"))
+				return
+			}
+			filepath, ok = p.(map[string]interface{})["file"].(string)
+			if !ok {
+				wg.Error(h, fmt.Errorf("missing file in include"))
+				return
+			}
+			ref, ok = p.(map[string]interface{})["ref"].(string)
+			if !ok {
+				// get project's default branch if ref is not present
+				wg.Lock()
+				v, _, err := h.Client.Projects.GetProject(pid, nil, options...)
+				wg.Unlock()
+				if err != nil {
+					return
+				}
+				ref = v.DefaultBranch
+
+			}
+
+			wg.Lock()
+			raw, resp, err = h.Client.RepositoryFiles.GetRawFile(pid, filepath, &gitlab.GetRawFileOptions{Ref: &ref}, options...)
+			wg.Unlock()
+			if err != nil {
+				hclog.L().Named("files").Trace("get raw file error", "project", project.WebURL, "error", err)
+			}
+			return
+		}
+	}
+
+	for _, r := range re {
+		if r.Match(raw) {
+			data <- sort.Element{Host: h, Struct: &ProjectFile{Project: project, Raw: raw}, Cached: resp.Header.Get("X-From-Cache") == "1"}
+			hclog.L().Named("files").Trace("search pattern was found in file", "team", h.Team, "project", h.Project, "host", h.URL,
+				"repo", project.WebURL, "file", filepath, "pattern", r.String(), "content", hclog.Fmt("%s", raw))
+			return
+		}
+	}
+
+	hclog.L().Named("files").Debug("search pattern was not found in file", "team", h.Team, "project", h.Project, "host", h.URL,
+		"repo", project.WebURL, "file", filepath, "patterns", hclog.Fmt("%v", re))
 }
 
 type ProjectFile struct {

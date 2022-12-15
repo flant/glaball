@@ -261,7 +261,6 @@ func ListPipelineCleanupSchedulesCmd() error {
 		}
 	}
 
-	any := []*regexp.Regexp{regexp.MustCompile(".*")}
 	re := make([]*regexp.Regexp, 0, len(cleanupPatterns))
 	for _, p := range cleanupPatterns {
 		r, err := regexp.Compile(p)
@@ -284,23 +283,39 @@ func ListPipelineCleanupSchedulesCmd() error {
 	listProjectsPipelinesOptions.Archived = gitlab.Bool(false)
 
 	wg := common.Limiter
-	data := make(chan interface{})
-
+	projectsCh := make(chan interface{})
 	for _, h := range common.Client.Hosts {
 		fmt.Printf("Searching for cleanups in %s ...\n", h.URL)
 		wg.Add(1)
 
 		// files.go
-		go listProjectsFiles(h, ".gitlab-ci.yml", gitRef, any, listProjectsPipelinesOptions, wg, data, cacheFunc)
+		go listProjects(h, listProjectsPipelinesOptions, wg, projectsCh, cacheFunc)
 	}
 
 	go func() {
 		wg.Wait()
-		close(data)
+		close(projectsCh)
+	}()
+
+	gitlabCIFilesList := make(sort.Elements, 0)
+	for e := range projectsCh {
+		gitlabCIFilesList = append(gitlabCIFilesList, e)
+
+	}
+
+	gitlabCIFilesCh := make(chan interface{})
+	for _, v := range gitlabCIFilesList.Typed() {
+		wg.Add(1)
+		go getGitlabCIFile(v.Host, v.Struct.(*gitlab.Project), ".gitlab-ci.yml", gitRef, desc, wg, gitlabCIFilesCh, cacheFunc)
+	}
+
+	go func() {
+		wg.Wait()
+		close(gitlabCIFilesCh)
 	}()
 
 	projectList := make(sort.Elements, 0)
-	for e := range data {
+	for e := range gitlabCIFilesCh {
 		projectList = append(projectList, e)
 	}
 
@@ -309,21 +324,21 @@ func ListPipelineCleanupSchedulesCmd() error {
 	}
 
 	// search for `cleanupFilepaths` files with contents matching `cleanupPatterns`
-	projectsCh := make(chan interface{})
+	cleanupFilepathsCh := make(chan interface{})
 	for _, v := range projectList.Typed() {
 		for _, fp := range cleanupFilepaths {
 			wg.Add(1)
-			go getRawFile(v.Host, v.Struct.(*ProjectFile).Project, fp, gitRef, re, wg, projectsCh, cacheFunc)
+			go getRawFile(v.Host, v.Struct.(*ProjectFile).Project, fp, gitRef, re, wg, cleanupFilepathsCh, cacheFunc)
 		}
 	}
 
 	go func() {
 		wg.Wait()
-		close(projectsCh)
+		close(cleanupFilepathsCh)
 	}()
 
 	toList := make(sort.Elements, 0)
-	for e := range projectsCh {
+	for e := range cleanupFilepathsCh {
 		toList = append(toList, e)
 	}
 
