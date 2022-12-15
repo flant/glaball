@@ -256,7 +256,7 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 	}
 }
 
-func getGitlabCIFile(h *client.Host, project *gitlab.Project, filepath, ref string, re []*regexp.Regexp,
+func getGitlabCIFile(h *client.Host, check bool, project *gitlab.Project, filepath, ref string, re []*regexp.Regexp,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 
 	var (
@@ -279,6 +279,11 @@ func getGitlabCIFile(h *client.Host, project *gitlab.Project, filepath, ref stri
 	wg.Unlock()
 	if err != nil {
 		hclog.L().Named("files").Trace("get raw file error", "project", project.WebURL, "error", err)
+		return
+	}
+
+	if !check {
+		data <- sort.Element{Host: h, Struct: &ProjectFile{Project: project, Raw: raw}, Cached: resp.Header.Get("X-From-Cache") == "1"}
 		return
 	}
 

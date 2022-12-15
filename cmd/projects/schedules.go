@@ -29,6 +29,7 @@ var (
 	cleanupDescriptions          []string
 	cleanupOwnerToken            string
 	cleanupCreate                bool
+	cleanupCheckJobs             bool
 	scheduleFormat               = util.Dict{
 		{
 			Key:   "COUNT",
@@ -133,6 +134,7 @@ func NewPipelineCleanupSchedulesCmd() *cobra.Command {
 		"List of regex patterns to search in pipelines schedules descriptions")
 	cmd.Flags().StringVar(&cleanupOwnerToken, "setowner", "", "Provide a private access token of a new owner with \"api\" scope to change ownership of cleanup schedules")
 	cmd.Flags().BoolVar(&cleanupCreate, "create", false, "Create werf cleanup schedules with owner token provided by --setowner flag")
+	cmd.Flags().BoolVar(&cleanupCheckJobs, "check", false, "Check for cleanup stage in .gitlab-ci.yml files")
 
 	// ListProjectsOptions
 	listProjectsOptionsFlags(cmd, &listProjectsPipelinesOptions)
@@ -306,7 +308,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 	gitlabCIFilesCh := make(chan interface{})
 	for _, v := range gitlabCIFilesList.Typed() {
 		wg.Add(1)
-		go getGitlabCIFile(v.Host, v.Struct.(*gitlab.Project), ".gitlab-ci.yml", gitRef, desc, wg, gitlabCIFilesCh, cacheFunc)
+		go getGitlabCIFile(v.Host, cleanupCheckJobs, v.Struct.(*gitlab.Project), ".gitlab-ci.yml", gitRef, desc, wg, gitlabCIFilesCh, cacheFunc)
 	}
 
 	go func() {
