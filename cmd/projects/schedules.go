@@ -308,7 +308,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 	gitlabCIFilesCh := make(chan interface{})
 	for _, v := range gitlabCIFilesList.Typed() {
 		wg.Add(1)
-		go getGitlabCIFile(v.Host, cleanupCheckJobs, v.Struct.(*gitlab.Project), ".gitlab-ci.yml", gitRef, desc, wg, gitlabCIFilesCh, cacheFunc)
+		go getGitlabCIFile(v.Host, cleanupCheckJobs, v.Struct.(*gitlab.Project), desc, wg, gitlabCIFilesCh, cacheFunc)
 	}
 
 	go func() {
@@ -330,7 +330,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 	for _, v := range projectList.Typed() {
 		for _, fp := range cleanupFilepaths {
 			wg.Add(1)
-			go getRawFile(v.Host, v.Struct.(*ProjectFile).Project, fp, gitRef, re, wg, cleanupFilepathsCh, cacheFunc)
+			go getRawFile(v.Host, v.Struct.(*ProjectLintResult).Project, fp, gitRef, re, wg, cleanupFilepathsCh, cacheFunc)
 		}
 	}
 

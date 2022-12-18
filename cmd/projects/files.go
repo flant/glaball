@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/flant/glaball/pkg/client"
@@ -256,104 +257,52 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 	}
 }
 
-func getGitlabCIFile(h *client.Host, check bool, project *gitlab.Project, filepath, ref string, re []*regexp.Regexp,
+func getGitlabCIFile(h *client.Host, check bool, project *gitlab.Project, re []*regexp.Regexp,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
-
-	var (
-		raw  []byte
-		resp *gitlab.Response
-		err  error
-	)
 
 	defer wg.Done()
 
-	if filepath == "" {
-		filepath = ".gitlab-ci.yml"
-	}
-	if ref == "" {
-		ref = project.DefaultBranch
-	}
-
 	wg.Lock()
-	raw, resp, err = h.Client.RepositoryFiles.GetRawFile(project.ID, filepath, &gitlab.GetRawFileOptions{Ref: &ref}, options...)
+	lint, resp, err := h.Client.Validate.ProjectLint(project.ID, &gitlab.ProjectLintOptions{}, options...)
 	wg.Unlock()
 	if err != nil {
-		hclog.L().Named("files").Trace("get raw file error", "project", project.WebURL, "error", err)
+		hclog.L().Named("files").Trace("project lint error", "project", project.WebURL, "error", err)
+		return
+	}
+
+	var v map[string]interface{}
+	if err := yaml.NewDecoder(strings.NewReader(lint.MergedYaml)).Decode(&v); err != nil {
+		hclog.L().Named("files").Debug("error decoding .gitlab-ci.yml file, skipping", "team", h.Team, "project", h.Project, "host", h.URL,
+			"repo", project.WebURL, "content", lint.MergedYaml, "error", err)
 		return
 	}
 
 	if !check {
-		data <- sort.Element{Host: h, Struct: &ProjectFile{Project: project, Raw: raw}, Cached: resp.Header.Get("X-From-Cache") == "1"}
+		data <- sort.Element{Host: h, Struct: &ProjectLintResult{Project: project, MergedYaml: v}, Cached: resp.Header.Get("X-From-Cache") == "1"}
 		return
 	}
 
 	for _, r := range re {
-		if r.Match(raw) {
-			data <- sort.Element{Host: h, Struct: &ProjectFile{Project: project, Raw: raw}, Cached: resp.Header.Get("X-From-Cache") == "1"}
+		if r.MatchString(lint.MergedYaml) {
+			data <- sort.Element{Host: h, Struct: &ProjectLintResult{Project: project, MergedYaml: v}, Cached: resp.Header.Get("X-From-Cache") == "1"}
 			hclog.L().Named("files").Trace("search pattern was found in file", "team", h.Team, "project", h.Project, "host", h.URL,
-				"repo", project.WebURL, "file", filepath, "pattern", r.String(), "content", hclog.Fmt("%s", raw))
-			return
-		}
-	}
-
-	var m map[string]interface{}
-	if err := yaml.Unmarshal(raw, &m); err != nil {
-		hclog.L().Named("files").Error("error decoding yaml", "team", h.Team, "project", h.Project, "host", h.URL,
-			"repo", project.WebURL, "file", filepath, "content", hclog.Fmt("%s", raw), "error", err)
-		return
-	}
-
-	if inc, ok := m["include"]; ok {
-		for _, p := range inc.([]interface{}) {
-			pid, ok := p.(map[string]interface{})["project"].(string)
-			if !ok {
-				wg.Error(h, fmt.Errorf("missing project in include"))
-				return
-			}
-			filepath, ok = p.(map[string]interface{})["file"].(string)
-			if !ok {
-				wg.Error(h, fmt.Errorf("missing file in include"))
-				return
-			}
-			ref, ok = p.(map[string]interface{})["ref"].(string)
-			if !ok {
-				// get project's default branch if ref is not present
-				wg.Lock()
-				v, _, err := h.Client.Projects.GetProject(pid, nil, options...)
-				wg.Unlock()
-				if err != nil {
-					return
-				}
-				ref = v.DefaultBranch
-
-			}
-
-			wg.Lock()
-			raw, resp, err = h.Client.RepositoryFiles.GetRawFile(pid, filepath, &gitlab.GetRawFileOptions{Ref: &ref}, options...)
-			wg.Unlock()
-			if err != nil {
-				hclog.L().Named("files").Trace("get raw file error", "project", project.WebURL, "error", err)
-			}
-			return
-		}
-	}
-
-	for _, r := range re {
-		if r.Match(raw) {
-			data <- sort.Element{Host: h, Struct: &ProjectFile{Project: project, Raw: raw}, Cached: resp.Header.Get("X-From-Cache") == "1"}
-			hclog.L().Named("files").Trace("search pattern was found in file", "team", h.Team, "project", h.Project, "host", h.URL,
-				"repo", project.WebURL, "file", filepath, "pattern", r.String(), "content", hclog.Fmt("%s", raw))
+				"repo", project.WebURL, "pattern", r.String(), "content", lint.MergedYaml)
 			return
 		}
 	}
 
 	hclog.L().Named("files").Debug("search pattern was not found in file", "team", h.Team, "project", h.Project, "host", h.URL,
-		"repo", project.WebURL, "file", filepath, "patterns", hclog.Fmt("%v", re))
+		"repo", project.WebURL, "patterns", hclog.Fmt("%v", re))
 }
 
 type ProjectFile struct {
 	Project *gitlab.Project `json:"project,omitempty"`
 	Raw     []byte
+}
+
+type ProjectLintResult struct {
+	Project    *gitlab.Project        `json:"project,omitempty"`
+	MergedYaml map[string]interface{} `json:"merged_yaml,omitempty"`
 }
 
 func listProjectsFilesRegexp(h *client.Host, ref string, re []*regexp.Regexp, opt gitlab.ListProjectsOptions,
