@@ -307,3 +307,30 @@ func (f *reviewerIDPtrValue) String() string {
 func (f *reviewerIDPtrValue) Type() string {
 	return "int|string"
 }
+
+type accessLevelValue struct{ v **gitlab.AccessLevelValue }
+
+func NewAccessLevelValue(p **gitlab.AccessLevelValue) *accessLevelValue {
+	return &accessLevelValue{p}
+}
+
+func (f *accessLevelValue) Set(s string) error {
+	v, err := strconv.Atoi(s)
+	if err == nil {
+		l := gitlab.AccessLevelValue(v)
+		*f.v = &l
+	}
+
+	return err
+}
+
+func (f *accessLevelValue) String() string {
+	if *f.v == nil {
+		return "<nil>"
+	}
+	return fmt.Sprint(**f.v)
+}
+
+func (f *accessLevelValue) Type() string {
+	return "int"
+}
