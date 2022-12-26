@@ -19,6 +19,7 @@ func NewCmd() *cobra.Command {
 		NewListCmd(),
 		NewPipelinesCmd(),
 		NewMergeRequestsCmd(),
+		NewBranchesCmd(),
 	)
 
 	return cmd
