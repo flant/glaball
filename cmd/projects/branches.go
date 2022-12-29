@@ -24,6 +24,7 @@ var (
 	listProtectedBranchesOptions     = gitlab.ListProtectedBranchesOptions{PerPage: 100}
 	protectRepositoryBranchesOptions = gitlab.ProtectRepositoryBranchesOptions{}
 	protectedBranchOrderBy           []string
+	forceProtect                     bool
 	protectedBranchFormat            = util.Dict{
 		{
 			Key:   "COUNT",
@@ -106,6 +107,9 @@ func NewProtectRepositoryBranchesCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().BoolVar(&forceProtect, "force", false,
+		"Force update already protected branches.")
+
 	cmd.Flags().Var(util.NewStringPtrValue(&protectRepositoryBranchesOptions.Name), "name",
 		"The name of the branch or wildcard")
 
@@ -158,6 +162,22 @@ func (pb *ProjectProtectedBranch) BranchesNames() []string {
 		branches = util.InsertString(branches, b.Name)
 	}
 	return branches
+}
+
+func (pb *ProjectProtectedBranch) Search(name string) (*gitlab.ProtectedBranch, bool) {
+	switch len(pb.ProtectedBranches) {
+	case 0:
+		return nil, false
+	case 1:
+		return pb.ProtectedBranches[0], pb.ProtectedBranches[0].Name == name
+	}
+	// linear search
+	for _, b := range pb.ProtectedBranches {
+		if b.Name == name {
+			return b, true
+		}
+	}
+	return nil, false
 }
 
 func ProtectedBranchesListCmd() error {
@@ -300,7 +320,7 @@ func ProtectRepositoryBranchesCmd() error {
 
 	toProtect := make(sort.Elements, 0)
 	for e := range protectedBranches {
-		if v := e.(sort.Element).Struct.(*ProjectProtectedBranch); len(v.ProtectedBranches) == 0 {
+		if v := e.(sort.Element).Struct.(*ProjectProtectedBranch); forceProtect || len(v.ProtectedBranches) == 0 {
 			toProtect = append(toProtect, e)
 		}
 	}
@@ -316,7 +336,7 @@ func ProtectRepositoryBranchesCmd() error {
 	protectedCh := make(chan interface{})
 	for _, v := range toProtect.Typed() {
 		wg.Add(1)
-		go protectRepositoryBranches(v.Host, v.Struct.(*ProjectProtectedBranch).Project, protectRepositoryBranchesOptions, wg, protectedCh, common.Client.WithNoCache())
+		go protectRepositoryBranches(v.Host, v.Struct.(*ProjectProtectedBranch), forceProtect, protectRepositoryBranchesOptions, wg, protectedCh, common.Client.WithNoCache())
 	}
 
 	go func() {
@@ -403,13 +423,76 @@ func listProtectedBranches(h *client.Host, project *gitlab.Project, opt gitlab.L
 	return nil
 }
 
-func protectRepositoryBranches(h *client.Host, project *gitlab.Project, opt gitlab.ProtectRepositoryBranchesOptions,
+func protectRepositoryBranches(h *client.Host, pb *ProjectProtectedBranch, forceProtect bool, opt gitlab.ProtectRepositoryBranchesOptions,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
 
 	defer wg.Done()
 
+	if forceProtect {
+		if old, ok := pb.Search(*opt.Name); ok {
+			wg.Lock()
+			_, err := h.Client.ProtectedBranches.UnprotectRepositoryBranches(pb.Project.ID, *opt.Name)
+			wg.Unlock()
+			if err != nil {
+				wg.Error(h, err)
+				return err
+			}
+
+			opt.AllowForcePush = &old.AllowForcePush
+			opt.CodeOwnerApprovalRequired = &old.CodeOwnerApprovalRequired
+
+			switch n := len(old.MergeAccessLevels); n {
+			case 0:
+			case 1:
+				opt.MergeAccessLevel = &old.MergeAccessLevels[0].AccessLevel
+			default:
+				allowedToMerge := make([]*gitlab.BranchPermissionOptions, 0, n)
+				for _, l := range old.MergeAccessLevels {
+					allowedToMerge = append(allowedToMerge, &gitlab.BranchPermissionOptions{
+						UserID:      &l.UserID,
+						GroupID:     &l.GroupID,
+						AccessLevel: &l.AccessLevel,
+					})
+				}
+				opt.AllowedToMerge = &allowedToMerge
+			}
+
+			switch n := len(old.PushAccessLevels); n {
+			case 0:
+			case 1:
+				opt.PushAccessLevel = &old.PushAccessLevels[0].AccessLevel
+			default:
+				allowedToPush := make([]*gitlab.BranchPermissionOptions, 0, n)
+				for _, l := range old.PushAccessLevels {
+					allowedToPush = append(allowedToPush, &gitlab.BranchPermissionOptions{
+						UserID:      &l.UserID,
+						GroupID:     &l.GroupID,
+						AccessLevel: &l.AccessLevel,
+					})
+				}
+				opt.AllowedToPush = &allowedToPush
+			}
+
+			switch n := len(old.UnprotectAccessLevels); n {
+			case 0:
+			case 1:
+				opt.UnprotectAccessLevel = &old.UnprotectAccessLevels[0].AccessLevel
+			default:
+				allowedToUnprotect := make([]*gitlab.BranchPermissionOptions, 0, n)
+				for _, l := range old.UnprotectAccessLevels {
+					allowedToUnprotect = append(allowedToUnprotect, &gitlab.BranchPermissionOptions{
+						UserID:      &l.UserID,
+						GroupID:     &l.GroupID,
+						AccessLevel: &l.AccessLevel,
+					})
+				}
+				opt.AllowedToUnprotect = &allowedToUnprotect
+			}
+		}
+	}
+
 	wg.Lock()
-	v, resp, err := h.Client.ProtectedBranches.ProtectRepositoryBranches(project.ID, &opt)
+	v, resp, err := h.Client.ProtectedBranches.ProtectRepositoryBranches(pb.Project.ID, &opt)
 	wg.Unlock()
 	if err != nil {
 		wg.Error(h, err)
@@ -419,7 +502,7 @@ func protectRepositoryBranches(h *client.Host, project *gitlab.Project, opt gitl
 	data <- sort.Element{
 		Host: h,
 		Struct: &ProjectProtectedBranch{
-			Project:           project,
+			Project:           pb.Project,
 			ProtectedBranches: []*gitlab.ProtectedBranch{v}},
 		Cached: resp.Header.Get("X-From-Cache") == "1"}
 
