@@ -34,12 +34,12 @@ var (
 			Value: "%s",
 		},
 		{
-			Key:   "BRANCH",
+			Key:   "BRANCHES",
 			Value: "%s",
 		},
 		{
 			Key:   "HOST",
-			Value: "%s",
+			Value: "[%s]",
 		},
 		{
 			Key:   "CACHED",
@@ -141,8 +141,23 @@ func NewProtectRepositoryBranchesCmd() *cobra.Command {
 }
 
 type ProjectProtectedBranch struct {
-	Project         *gitlab.Project         `json:"project,omitempty"`
-	ProtectedBranch *gitlab.ProtectedBranch `json:"protected_branch,omitempty"`
+	Project           *gitlab.Project           `json:"project,omitempty"`
+	ProtectedBranches []*gitlab.ProtectedBranch `json:"protected_branches,omitempty"`
+}
+
+func (pb *ProjectProtectedBranch) BranchesNames() []string {
+	switch len(pb.ProtectedBranches) {
+	case 0:
+		return []string{}
+	case 1:
+		return []string{pb.ProtectedBranches[0].Name}
+	}
+
+	branches := make([]string, 0, len(pb.ProtectedBranches))
+	for _, b := range pb.ProtectedBranches {
+		branches = util.InsertString(branches, b.Name)
+	}
+	return branches
 }
 
 func ProtectedBranchesListCmd() error {
@@ -152,6 +167,11 @@ func ProtectedBranchesListCmd() error {
 
 	wg := common.Limiter
 	data := make(chan interface{})
+	defer func() {
+		for _, err := range wg.Errors() {
+			hclog.L().Error(err.Err.Error())
+		}
+	}()
 
 	for _, h := range common.Client.Hosts {
 		fmt.Printf("Getting protected branches from %s ...\n", h.URL)
@@ -209,27 +229,18 @@ func ProtectedBranchesListCmd() error {
 	for _, r := range results {
 		unique++
 		total += r.Count
-		branches := make([]string, 0)
-		hosts := make([]string, 0)
-
 		for _, v := range r.Elements.Typed() {
-			if b := v.Struct.(*ProjectProtectedBranch).ProtectedBranch; b != nil {
-				branches = util.InsertString(branches, b.Name)
-			}
-			if s := v.Host.ProjectName(); !util.ContainsString(hosts, s) {
-				hosts = append(hosts, s)
+			if err := protectedBranchFormat.Print(w, "\t",
+				r.Count,
+				r.Key,
+				v.Struct.(*ProjectProtectedBranch).BranchesNames(),
+				v.Host.ProjectName(),
+				r.Cached,
+			); err != nil {
+				return err
 			}
 		}
 
-		if err := protectedBranchFormat.Print(w, "\t",
-			r.Count,
-			r.Key,
-			branches,
-			hosts,
-			r.Cached,
-		); err != nil {
-			return err
-		}
 	}
 
 	if err := totalFormat.Print(w, "\n", unique, total, len(wg.Errors())); err != nil {
@@ -238,10 +249,6 @@ func ProtectedBranchesListCmd() error {
 
 	if err := w.Flush(); err != nil {
 		return err
-	}
-
-	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil
@@ -254,6 +261,11 @@ func ProtectRepositoryBranchesCmd() error {
 
 	wg := common.Limiter
 	data := make(chan interface{})
+	defer func() {
+		for _, err := range wg.Errors() {
+			hclog.L().Error(err.Err.Error())
+		}
+	}()
 
 	for _, h := range common.Client.Hosts {
 		fmt.Printf("Getting protected branches from %s ...\n", h.URL)
@@ -266,22 +278,19 @@ func ProtectRepositoryBranchesCmd() error {
 		close(data)
 	}()
 
-	toProtect := make(sort.Elements, 0)
+	toList := make(sort.Elements, 0)
 	for e := range data {
-		toProtect = append(toProtect, e)
+		toList = append(toList, e)
 	}
 
-	if len(toProtect) == 0 {
+	if len(toList) == 0 {
 		return fmt.Errorf("no projects found")
 	}
 
-	util.AskUser(fmt.Sprintf("Do you really want to protect branch %q in %d repositories in %v ?",
-		*protectRepositoryBranchesOptions.Name, len(toProtect), common.Client.Hosts.Projects(common.Config.ShowAll)))
-
 	protectedBranches := make(chan interface{})
-	for _, v := range toProtect.Typed() {
+	for _, v := range toList.Typed() {
 		wg.Add(1)
-		go protectRepositoryBranches(v.Host, v.Struct.(*gitlab.Project), protectRepositoryBranchesOptions, wg, protectedBranches, common.Client.WithNoCache())
+		go listProtectedBranches(v.Host, v.Struct.(*gitlab.Project), listProtectedBranchesOptions, wg, protectedBranches, common.Client.WithCache())
 	}
 
 	go func() {
@@ -289,7 +298,33 @@ func ProtectRepositoryBranchesCmd() error {
 		close(protectedBranches)
 	}()
 
-	results, err := sort.FromChannel(protectedBranches, &sort.Options{
+	toProtect := make(sort.Elements, 0)
+	for e := range protectedBranches {
+		if v := e.(sort.Element).Struct.(*ProjectProtectedBranch); len(v.ProtectedBranches) == 0 {
+			toProtect = append(toProtect, e)
+		}
+	}
+
+	if len(toProtect) == 0 {
+		return fmt.Errorf("branch %q is already protected in %d repositories in %v",
+			*protectRepositoryBranchesOptions.Name, len(toList), common.Client.Hosts.Projects(common.Config.ShowAll))
+	}
+
+	util.AskUser(fmt.Sprintf("Do you really want to protect branch %q in %d repositories in %v ?",
+		*protectRepositoryBranchesOptions.Name, len(toProtect), common.Client.Hosts.Projects(common.Config.ShowAll)))
+
+	protectedCh := make(chan interface{})
+	for _, v := range toProtect.Typed() {
+		wg.Add(1)
+		go protectRepositoryBranches(v.Host, v.Struct.(*ProjectProtectedBranch).Project, protectRepositoryBranchesOptions, wg, protectedCh, common.Client.WithNoCache())
+	}
+
+	go func() {
+		wg.Wait()
+		close(protectedCh)
+	}()
+
+	results, err := sort.FromChannel(protectedCh, &sort.Options{
 		OrderBy:    protectedBranchOrderBy,
 		SortBy:     sortBy,
 		GroupBy:    protectedBranchDefaultField,
@@ -314,27 +349,18 @@ func ProtectRepositoryBranchesCmd() error {
 	for _, r := range results {
 		unique++
 		total += r.Count
-		branches := make([]string, 0)
-		hosts := make([]string, 0)
-
 		for _, v := range r.Elements.Typed() {
-			if b := v.Struct.(*ProjectProtectedBranch).ProtectedBranch; b != nil {
-				branches = util.InsertString(branches, b.Name)
-			}
-			if s := v.Host.ProjectName(); !util.ContainsString(hosts, s) {
-				hosts = append(hosts, s)
+			if err := protectedBranchFormat.Print(w, "\t",
+				r.Count,
+				r.Key,
+				v.Struct.(*ProjectProtectedBranch).BranchesNames(),
+				v.Host.ProjectName(),
+				r.Cached,
+			); err != nil {
+				return err
 			}
 		}
 
-		if err := protectedBranchFormat.Print(w, "\t",
-			r.Count,
-			r.Key,
-			branches,
-			hosts,
-			r.Cached,
-		); err != nil {
-			return err
-		}
 	}
 
 	if err := totalFormat.Print(w, "\n", unique, total, len(wg.Errors())); err != nil {
@@ -343,10 +369,6 @@ func ProtectRepositoryBranchesCmd() error {
 
 	if err := w.Flush(); err != nil {
 		return err
-	}
-
-	for _, err := range wg.Errors() {
-		hclog.L().Error(err.Err.Error())
 	}
 
 	return nil
@@ -365,24 +387,12 @@ func listProtectedBranches(h *client.Host, project *gitlab.Project, opt gitlab.L
 		return err
 	}
 
-	if len(list) == 0 {
-		data <- sort.Element{
-			Host: h,
-			Struct: &ProjectProtectedBranch{
-				Project:         project,
-				ProtectedBranch: nil},
-			Cached: resp.Header.Get("X-From-Cache") == "1"}
-		return nil
-	}
-
-	for _, v := range list {
-		data <- sort.Element{
-			Host: h,
-			Struct: &ProjectProtectedBranch{
-				Project:         project,
-				ProtectedBranch: v},
-			Cached: resp.Header.Get("X-From-Cache") == "1"}
-	}
+	data <- sort.Element{
+		Host: h,
+		Struct: &ProjectProtectedBranch{
+			Project:           project,
+			ProtectedBranches: list},
+		Cached: resp.Header.Get("X-From-Cache") == "1"}
 
 	if resp.NextPage > 0 {
 		wg.Add(1)
@@ -409,8 +419,8 @@ func protectRepositoryBranches(h *client.Host, project *gitlab.Project, opt gitl
 	data <- sort.Element{
 		Host: h,
 		Struct: &ProjectProtectedBranch{
-			Project:         project,
-			ProtectedBranch: v},
+			Project:           project,
+			ProtectedBranches: []*gitlab.ProtectedBranch{v}},
 		Cached: resp.Header.Get("X-From-Cache") == "1"}
 
 	return nil
