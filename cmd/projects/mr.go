@@ -120,7 +120,6 @@ func MergeRequestsListCmd() error {
 	for _, v := range toList.Typed() {
 		wg.Add(1)
 		go listMergeRequests(v.Host, v.Struct.(*gitlab.Project), listProjectMergeRequestsOptions, wg, mergeRequests, common.Client.WithCache())
-
 	}
 
 	go func() {

@@ -233,6 +233,16 @@ $ glaball users block --by=username test-glaball --hosts
 $ glaball projects edit --search_namespaces=true --search mygroup/ --ci_forward_deployment_enabled=false
 ```
 
+### List opened merge requests
+```
+$ glaball projects mr list
+```
+
+### Protect main branch in all projects
+```
+$ glaball projects branches protected protect --name="main" --merge_access_level=30
+```
+
 ### Search for a pattern in the files
 *You can search through several files at once, but that (at least) doubles the search time.*
 
