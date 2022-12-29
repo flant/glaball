@@ -12,6 +12,7 @@ import (
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
 	"github.com/hashicorp/go-hclog"
+	"github.com/imdario/mergo"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"
 )
@@ -430,21 +431,15 @@ func protectRepositoryBranches(h *client.Host, pb *ProjectProtectedBranch, force
 
 	if forceProtect {
 		if old, ok := pb.Search(*opt.Name); ok {
-			wg.Lock()
-			_, err := h.Client.ProtectedBranches.UnprotectRepositoryBranches(pb.Project.ID, *opt.Name)
-			wg.Unlock()
-			if err != nil {
-				wg.Error(h, err)
-				return err
-			}
+			new := opt
 
-			opt.AllowForcePush = &old.AllowForcePush
-			opt.CodeOwnerApprovalRequired = &old.CodeOwnerApprovalRequired
+			new.AllowForcePush = &old.AllowForcePush
+			new.CodeOwnerApprovalRequired = &old.CodeOwnerApprovalRequired
 
 			switch n := len(old.MergeAccessLevels); n {
 			case 0:
 			case 1:
-				opt.MergeAccessLevel = &old.MergeAccessLevels[0].AccessLevel
+				new.MergeAccessLevel = &old.MergeAccessLevels[0].AccessLevel
 			default:
 				allowedToMerge := make([]*gitlab.BranchPermissionOptions, 0, n)
 				for _, l := range old.MergeAccessLevels {
@@ -454,13 +449,13 @@ func protectRepositoryBranches(h *client.Host, pb *ProjectProtectedBranch, force
 						AccessLevel: &l.AccessLevel,
 					})
 				}
-				opt.AllowedToMerge = &allowedToMerge
+				new.AllowedToMerge = &allowedToMerge
 			}
 
 			switch n := len(old.PushAccessLevels); n {
 			case 0:
 			case 1:
-				opt.PushAccessLevel = &old.PushAccessLevels[0].AccessLevel
+				new.PushAccessLevel = &old.PushAccessLevels[0].AccessLevel
 			default:
 				allowedToPush := make([]*gitlab.BranchPermissionOptions, 0, n)
 				for _, l := range old.PushAccessLevels {
@@ -470,13 +465,13 @@ func protectRepositoryBranches(h *client.Host, pb *ProjectProtectedBranch, force
 						AccessLevel: &l.AccessLevel,
 					})
 				}
-				opt.AllowedToPush = &allowedToPush
+				new.AllowedToPush = &allowedToPush
 			}
 
 			switch n := len(old.UnprotectAccessLevels); n {
 			case 0:
 			case 1:
-				opt.UnprotectAccessLevel = &old.UnprotectAccessLevels[0].AccessLevel
+				new.UnprotectAccessLevel = &old.UnprotectAccessLevels[0].AccessLevel
 			default:
 				allowedToUnprotect := make([]*gitlab.BranchPermissionOptions, 0, n)
 				for _, l := range old.UnprotectAccessLevels {
@@ -486,8 +481,23 @@ func protectRepositoryBranches(h *client.Host, pb *ProjectProtectedBranch, force
 						AccessLevel: &l.AccessLevel,
 					})
 				}
-				opt.AllowedToUnprotect = &allowedToUnprotect
+				new.AllowedToUnprotect = &allowedToUnprotect
 			}
+
+			if err := mergo.Merge(&new, opt, mergo.WithOverwriteWithEmptyValue); err != nil {
+				wg.Error(h, err)
+				return err
+			}
+
+			wg.Lock()
+			_, err := h.Client.ProtectedBranches.UnprotectRepositoryBranches(pb.Project.ID, *new.Name)
+			wg.Unlock()
+			if err != nil {
+				wg.Error(h, err)
+				return err
+			}
+
+			opt = new
 		}
 	}
 
