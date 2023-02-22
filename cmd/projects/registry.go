@@ -94,7 +94,7 @@ func NewRegistryListCmd() *cobra.Command {
 }
 
 func RegistryListCmd() error {
-	if !sort.ValidOrderBy(registryRepositoryhOrderBy, ProjectProtectedBranch{}) {
+	if !sort.ValidOrderBy(registryRepositoryhOrderBy, ProjectRegistryRepository{}) {
 		registryRepositoryhOrderBy = append(registryRepositoryhOrderBy, registryRepositoryDefaultField)
 	}
 
@@ -145,11 +145,11 @@ func RegistryListCmd() error {
 		registryRepositoriesList := make(sort.Elements, 0)
 		for v := range registryRepositories {
 			e := v.(sort.Element)
-			rep := e.Struct.(*ProjectRegistryRepository)
-			for _, reg := range rep.RegistryRepositories {
-				for _, tag := range reg.Tags {
+			p := e.Struct.(*ProjectRegistryRepository)
+			for _, r := range p.RegistryRepositories {
+				for _, tag := range r.Tags {
 					wg.Add(1)
-					go getRegistryRepositoryTagDetail(e.Host, rep.Project, reg, tag, wg, common.Client.WithCache())
+					go getRegistryRepositoryTagDetail(e.Host, p.Project, r, tag, wg, common.Client.WithCache())
 				}
 			}
 			registryRepositoriesList = append(registryRepositoriesList, v)
