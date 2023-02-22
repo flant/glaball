@@ -6,6 +6,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/alecthomas/units"
 	"github.com/flant/glaball/cmd/common"
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
@@ -38,11 +39,11 @@ var (
 		},
 		{
 			Key:   "TAGS COUNT",
-			Value: "%d",
+			Value: "[%d]",
 		},
 		{
 			Key:   "TOTAL SIZE",
-			Value: "%d",
+			Value: "%s",
 		},
 		{
 			Key:   "HOST",
@@ -140,6 +141,29 @@ func RegistryListCmd() error {
 		close(registryRepositories)
 	}()
 
+	if registryRepositoryTotalSize {
+		registryRepositoriesList := make(sort.Elements, 0)
+		for v := range registryRepositories {
+			e := v.(sort.Element)
+			rep := e.Struct.(*ProjectRegistryRepository)
+			for _, reg := range rep.RegistryRepositories {
+				for _, tag := range reg.Tags {
+					wg.Add(1)
+					go getRegistryRepositoryTagDetail(e.Host, rep.Project, reg, tag, wg, common.Client.WithCache())
+				}
+			}
+			registryRepositoriesList = append(registryRepositoriesList, v)
+		}
+		wg.Wait()
+		registryRepositories = make(chan interface{})
+		go func() {
+			for _, v := range registryRepositoriesList {
+				registryRepositories <- v
+			}
+			close(registryRepositories)
+		}()
+	}
+
 	results, err := sort.FromChannel(registryRepositories, &sort.Options{
 		OrderBy:    registryRepositoryhOrderBy,
 		SortBy:     sortBy,
@@ -151,7 +175,7 @@ func RegistryListCmd() error {
 	}
 
 	if len(results) == 0 {
-		return fmt.Errorf("no protected branches found")
+		return fmt.Errorf("no registry repositories found")
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
@@ -171,7 +195,7 @@ func RegistryListCmd() error {
 				len(pr.RegistryRepositories),
 				r.Key,
 				pr.TagsCount(),
-				pr.TotalSize(),
+				units.Base2Bytes(pr.TotalSize()).Floor(),
 				v.Host.ProjectName(),
 				r.Cached,
 			); err != nil {
@@ -240,4 +264,20 @@ func listRegistryRepositories(h *client.Host, project *gitlab.Project, opt gitla
 		opt.Page = resp.NextPage
 		go listRegistryRepositories(h, project, opt, wg, data, options...)
 	}
+}
+
+func getRegistryRepositoryTagDetail(h *client.Host, project *gitlab.Project, repository *gitlab.RegistryRepository,
+	tag *gitlab.RegistryRepositoryTag, wg *limiter.Limiter, options ...gitlab.RequestOptionFunc) {
+
+	defer wg.Done()
+
+	wg.Lock()
+	v, _, err := h.Client.ContainerRegistry.GetRegistryRepositoryTagDetail(project.ID, repository.ID, tag.Name, options...)
+	wg.Unlock()
+	if err != nil {
+		wg.Error(h, err)
+		return
+	}
+
+	*tag = *v
 }

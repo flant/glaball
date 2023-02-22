@@ -14,7 +14,7 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.15.0
-	github.com/xanzy/go-gitlab v0.80.1
+	github.com/xanzy/go-gitlab v0.80.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
