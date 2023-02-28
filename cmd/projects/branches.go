@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	listProtectedBranchesOptions     = gitlab.ListProtectedBranchesOptions{PerPage: 100}
+	listProtectedBranchesOptions     = gitlab.ListProtectedBranchesOptions{ListOptions: gitlab.ListOptions{PerPage: 100}}
 	protectRepositoryBranchesOptions = gitlab.ProtectRepositoryBranchesOptions{}
 	protectedBranchOrderBy           []string
 	forceProtect                     bool

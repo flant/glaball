@@ -274,6 +274,11 @@ Change the owner of existing cleanup scheduled pipelines (only **one** gitlab ho
 $ glaball projects pipelines cleanups -f "main.example-project.primary" --setowner ${WERF_IMAGES_CLEANUP_PASSWORD}
 ```
 
+### Get information about the projects' container registries
+```
+$ glaball projects registry list --size | sort -k 4 -h
+```
+
 ### Search for a user
 ```
 $ glaball users search --by=username docker
