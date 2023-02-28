@@ -229,10 +229,15 @@ func (pr *ProjectRegistryRepository) TagsCount() (i int) {
 }
 
 func (pr *ProjectRegistryRepository) TotalSize() (i int) {
+	digests := make(map[string]struct{})
 	if registryRepositoryTotalSize {
 		for _, v := range pr.RegistryRepositories {
 			for _, t := range v.Tags {
-				i += t.TotalSize
+				// deduplicate size
+				if _, ok := digests[t.Digest]; !ok {
+					i += t.TotalSize
+					digests[t.Digest] = struct{}{}
+				}
 			}
 		}
 	}
