@@ -59,6 +59,9 @@ func editProjectsOptionsFlags(cmd *cobra.Command, opt *gitlab.EditProjectOptions
 
 	cmd.Flags().Var(util.NewStringPtrValue(&opt.DefaultBranch), "default_branch",
 		"The default branch name.")
+
+	cmd.Flags().Var(util.NewBoolPtrValue(&opt.SharedRunnersEnabled), "shared_runners_enabled",
+		"Enable shared runners for this project.")
 }
 
 func Edit() error {
