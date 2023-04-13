@@ -309,6 +309,54 @@ func ListMergeRequestsByAssigneeID(h *client.Host, project *gitlab.Project, assi
 	return listMergeRequestsByAssigneeID(h, project, assigneeIDs, opt, wg, data, options...)
 }
 
+func listMergeRequestsByAssigneeOrAuthorID(h *client.Host, project *gitlab.Project, IDs []int, opt gitlab.ListProjectMergeRequestsOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
+	defer wg.Done()
+
+	wg.Lock()
+	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt)
+	if err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return err
+	}
+	wg.Unlock()
+
+	for _, v := range list {
+		if len(IDs) == 0 {
+			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+			continue
+		}
+
+		// if mr has assignee, then check and continue
+		if v.Assignee != nil {
+			if util.ContainsInt(IDs, v.Assignee.ID) {
+				data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+			}
+			continue
+		}
+
+		// otherwise check the author
+		if v.Author != nil && util.ContainsInt(IDs, v.Author.ID) {
+			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+		}
+	}
+
+	if resp.NextPage > 0 {
+		wg.Add(1)
+		opt.Page = resp.NextPage
+		go listMergeRequestsByAssigneeOrAuthorID(h, project, IDs, opt, wg, data, options...)
+	}
+
+	return nil
+}
+
+// authorIDs slice must be sorted in ascending order
+func ListMergeRequestsByAuthorOrAssigneeID(h *client.Host, project *gitlab.Project, IDs []int, opt gitlab.ListProjectMergeRequestsOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
+	return listMergeRequestsByAssigneeOrAuthorID(h, project, IDs, opt, wg, data, options...)
+}
+
 func listMergeRequestsSearch(h *client.Host, project *gitlab.Project, key string, value *regexp.Regexp, opt gitlab.ListProjectMergeRequestsOptions,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
 	defer wg.Done()
