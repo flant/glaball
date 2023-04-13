@@ -275,6 +275,40 @@ func ListMergeRequestsByAuthorID(h *client.Host, project *gitlab.Project, author
 	return listMergeRequestsByAuthorID(h, project, authorIDs, opt, wg, data, options...)
 }
 
+func listMergeRequestsByAssigneeID(h *client.Host, project *gitlab.Project, assigneeIDs []int, opt gitlab.ListProjectMergeRequestsOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
+	defer wg.Done()
+
+	wg.Lock()
+	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt)
+	if err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return err
+	}
+	wg.Unlock()
+
+	for _, v := range list {
+		if len(assigneeIDs) == 0 || util.ContainsInt(assigneeIDs, v.Assignee.ID) {
+			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+		}
+	}
+
+	if resp.NextPage > 0 {
+		wg.Add(1)
+		opt.Page = resp.NextPage
+		go listMergeRequestsByAssigneeID(h, project, assigneeIDs, opt, wg, data, options...)
+	}
+
+	return nil
+}
+
+// assigneeIDs slice must be sorted in ascending order
+func ListMergeRequestsByAssigneeID(h *client.Host, project *gitlab.Project, assigneeIDs []int, opt gitlab.ListProjectMergeRequestsOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
+	return listMergeRequestsByAssigneeID(h, project, assigneeIDs, opt, wg, data, options...)
+}
+
 func listMergeRequestsSearch(h *client.Host, project *gitlab.Project, key string, value *regexp.Regexp, opt gitlab.ListProjectMergeRequestsOptions,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
 	defer wg.Done()
