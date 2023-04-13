@@ -255,7 +255,7 @@ func listMergeRequestsByAuthorID(h *client.Host, project *gitlab.Project, author
 	wg.Unlock()
 
 	for _, v := range list {
-		if len(authorIDs) == 0 || util.ContainsInt(authorIDs, v.Author.ID) {
+		if len(authorIDs) == 0 || (v.Author != nil && util.ContainsInt(authorIDs, v.Author.ID)) {
 			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
 		}
 	}
@@ -289,7 +289,7 @@ func listMergeRequestsByAssigneeID(h *client.Host, project *gitlab.Project, assi
 	wg.Unlock()
 
 	for _, v := range list {
-		if len(assigneeIDs) == 0 || util.ContainsInt(assigneeIDs, v.Assignee.ID) {
+		if len(assigneeIDs) == 0 || (v.Assignee != nil && util.ContainsInt(assigneeIDs, v.Assignee.ID)) {
 			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
 		}
 	}
