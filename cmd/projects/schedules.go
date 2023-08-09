@@ -2,10 +2,13 @@ package projects
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"regexp"
 	"strings"
 	"text/tabwriter"
+
+	go_sort "sort"
 
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
@@ -17,6 +20,10 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"
+)
+
+const (
+	pipelinesCount = 10
 )
 
 var (
@@ -196,8 +203,10 @@ func ListPipelineSchedulesCmd() error {
 
 			if s := v.Struct.(ProjectPipelineSchedule).Schedule; s != nil {
 				count = 1
-				owner = s.Owner.Username
-				if s.LastPipeline.Status == "" {
+				if s.Owner != nil {
+					owner = s.Owner.Username
+				}
+				if s.LastPipeline == nil || s.LastPipeline.Status == "" {
 					pipelineStatus = "unknown"
 				} else {
 					pipelineStatus = s.LastPipeline.Status
@@ -352,7 +361,7 @@ func ListPipelineCleanupSchedulesCmd() error {
 	for _, v := range toList.Typed() {
 		wg.Add(1)
 		go listPipelineSchedules(v.Host, v.Struct.(*ProjectFile).Project, gitlab.ListPipelineSchedulesOptions{PerPage: 100},
-			desc, wg, schedules, cacheFunc)
+			desc, false, wg, schedules, cacheFunc)
 	}
 
 	go func() {
@@ -543,7 +552,7 @@ func listProjectsPipelines(h *client.Host, opt gitlab.ListProjectsOptions, desc 
 
 	for _, v := range list {
 		wg.Add(1)
-		go listPipelineSchedules(h, v, gitlab.ListPipelineSchedulesOptions{PerPage: 100}, desc, wg, data, options...)
+		go listPipelineSchedules(h, v, gitlab.ListPipelineSchedulesOptions{PerPage: 100}, desc, false, wg, data, options...)
 	}
 
 	if resp.NextPage > 0 {
@@ -554,7 +563,7 @@ func listProjectsPipelines(h *client.Host, opt gitlab.ListProjectsOptions, desc 
 }
 
 func listPipelineSchedules(h *client.Host, project *gitlab.Project, opt gitlab.ListPipelineSchedulesOptions,
-	desc []*regexp.Regexp, wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
+	desc []*regexp.Regexp, withLastPipelines bool, wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 
 	defer wg.Done()
 
@@ -585,18 +594,21 @@ filter:
 		if active == nil && status == nil {
 			data <- sort.Element{
 				Host:   h,
-				Struct: ProjectPipelineSchedule{project, nil},
+				Struct: ProjectPipelineSchedule{project, nil, nil},
 				Cached: resp.Header.Get("X-From-Cache") == "1"}
 		}
 	} else {
 		for _, v := range filteredList {
 			// get entire pipeline schedule to make lastpipeline struct accessible
 			// note: init new variables with the same names
+			wg.Lock()
 			v, resp, err := h.Client.PipelineSchedules.GetPipelineSchedule(project.ID, v.ID, options...)
 			if err != nil {
 				wg.Error(h, err)
+				wg.Unlock()
 				continue
 			}
+			wg.Unlock()
 			// check pipeline schedule state
 			if active != nil && v.Active != *active {
 				continue
@@ -606,10 +618,61 @@ filter:
 			if status != nil && (v.LastPipeline.Status == "" || v.LastPipeline.Status != *status) {
 				continue
 			}
+
+			var pipelines []*gitlab.Pipeline
+
+			// get last pipelines
+			if withLastPipelines {
+				perPage := 100
+
+				wg.Lock()
+				pipelines, resp, err = h.Client.PipelineSchedules.ListPipelinesTriggeredBySchedule(project.ID, v.ID, &gitlab.ListPipelinesTriggeredByScheduleOptions{PerPage: perPage}, options...)
+				if err != nil {
+					wg.Error(h, err)
+					wg.Unlock()
+					continue
+				}
+				wg.Unlock()
+
+				if resp.TotalPages > 1 {
+					// count last page
+					// https://gitlab.com/gitlab-org/gitlab/-/issues/369095
+					for perPage > pipelinesCount {
+						if resp.TotalItems%perPage > pipelinesCount {
+							break
+						}
+						perPage--
+					}
+					lastPage := math.Ceil(float64(resp.TotalItems) / float64(perPage))
+
+					wg.Lock()
+					pipelines, resp, err = h.Client.PipelineSchedules.ListPipelinesTriggeredBySchedule(project.ID, v.ID, &gitlab.ListPipelinesTriggeredByScheduleOptions{
+						Page:    int(lastPage),
+						PerPage: perPage,
+					}, options...)
+					if err != nil {
+						wg.Error(h, err)
+						wg.Unlock()
+						continue
+					}
+					wg.Unlock()
+				}
+
+				if len(pipelines) > pipelinesCount {
+					pipelines = pipelines[len(pipelines)-pipelinesCount:]
+				}
+
+				// sort descending
+				// https://gitlab.com/gitlab-org/gitlab/-/issues/369095
+				go_sort.Slice(pipelines, func(i, j int) bool {
+					return pipelines[i].ID >= pipelines[j].ID
+				})
+			}
+
 			// push result to channel
 			data <- sort.Element{
 				Host:   h,
-				Struct: ProjectPipelineSchedule{project, v},
+				Struct: ProjectPipelineSchedule{project, v, pipelines},
 				Cached: resp.Header.Get("X-From-Cache") == "1"}
 		}
 	}
@@ -617,13 +680,14 @@ filter:
 	if resp.NextPage > 0 {
 		wg.Add(1)
 		opt.Page = resp.NextPage
-		go listPipelineSchedules(h, project, opt, desc, wg, data, options...)
+		go listPipelineSchedules(h, project, opt, desc, false, wg, data, options...)
 	}
 }
 
 type ProjectPipelineSchedule struct {
-	Project  *gitlab.Project          `json:"project,omitempty"`
-	Schedule *gitlab.PipelineSchedule `json:"schedule,omitempty"`
+	Project   *gitlab.Project          `json:"project,omitempty"`
+	Schedule  *gitlab.PipelineSchedule `json:"schedule,omitempty"`
+	Pipelines []*gitlab.Pipeline       `json:"pipelines,omitempty"`
 }
 
 type Schedules []*gitlab.PipelineSchedule
@@ -650,8 +714,8 @@ func (a Schedules) Descriptions() string {
 }
 
 func ListPipelineSchedules(h *client.Host, project *gitlab.Project, opt gitlab.ListPipelineSchedulesOptions,
-	desc []*regexp.Regexp, wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
-	listPipelineSchedules(h, project, opt, desc, wg, data, options...)
+	desc []*regexp.Regexp, withLastPipelines bool, wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
+	listPipelineSchedules(h, project, opt, desc, withLastPipelines, wg, data, options...)
 }
 
 func takeOwnership(h *client.Host, schedule ProjectPipelineSchedule,
