@@ -210,7 +210,6 @@ func ListPipelineSchedulesCmd() error {
 					pipelineStatus = "unknown"
 				} else {
 					pipelineStatus = s.LastPipeline.Status
-
 				}
 				if s.Active {
 					scheduleDescription = fmt.Sprintf("%s (active)", s.Description)
@@ -493,12 +492,13 @@ func ListPipelineCleanupSchedulesCmd() error {
 
 			if s := v.Struct.(ProjectPipelineSchedule).Schedule; s != nil {
 				count = 1
-				owner = s.Owner.Username
-				if s.LastPipeline.Status == "" {
+				if s.Owner != nil {
+					owner = s.Owner.Username
+				}
+				if s.LastPipeline == nil || s.LastPipeline.Status == "" {
 					pipelineStatus = "unknown"
 				} else {
 					pipelineStatus = s.LastPipeline.Status
-
 				}
 				if s.Active {
 					scheduleDescription = fmt.Sprintf("%s (active)", s.Description)
