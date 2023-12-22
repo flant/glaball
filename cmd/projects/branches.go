@@ -6,6 +6,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"dario.cat/mergo"
 	"github.com/flant/glaball/cmd/common"
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"

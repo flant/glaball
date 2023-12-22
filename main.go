@@ -12,6 +12,7 @@ import (
 	"github.com/flant/glaball/cmd/config"
 	"github.com/flant/glaball/cmd/info"
 	"github.com/flant/glaball/cmd/projects"
+	"github.com/flant/glaball/cmd/tokens"
 	"github.com/flant/glaball/cmd/users"
 	"github.com/flant/glaball/cmd/versions"
 
@@ -97,6 +98,7 @@ func init() {
 		config.NewCmd(),
 		info.NewCmd(),
 		projects.NewCmd(),
+		tokens.NewCmd(),
 		users.NewCmd(),
 		users.NewWhoamiCmd(),
 		versions.NewCmd(),

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/ahmetb/go-linq"
+	"github.com/ahmetb/go-linq/v3"
 	"github.com/flant/glaball/pkg/client"
 	"github.com/jmoiron/sqlx/reflectx"
 )

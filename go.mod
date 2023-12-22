@@ -53,6 +53,7 @@ require (
 require (
 	github.com/armon/go-radix v1.0.0
 	github.com/google/btree v1.1.2 // indirect
+	github.com/samber/lo v1.39.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/time v0.5.0 // indirect
 )

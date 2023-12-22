@@ -31,7 +31,7 @@ func (d Dict) Values() []string {
 
 func (d Dict) Print(w io.Writer, sep string, args ...interface{}) error {
 	if len(args) != len(d) {
-		return fmt.Errorf("wrong number of arguments")
+		return fmt.Errorf("cannot print: wrong number of arguments")
 	}
 	_, err := fmt.Fprintf(w, strings.Join(d.Values(), sep)+"\n", args...)
 	return err

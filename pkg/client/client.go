@@ -13,7 +13,7 @@ import (
 	"github.com/flant/glaball/pkg/util"
 	"github.com/gregjones/httpcache"
 
-	"github.com/ahmetb/go-linq"
+	"github.com/ahmetb/go-linq/v3"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-retryablehttp"
