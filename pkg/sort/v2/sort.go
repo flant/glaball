@@ -56,9 +56,9 @@ func (c Cached) String() string {
 type Elements []interface{}
 
 func (e Elements) Hosts() client.Hosts {
-	s := make(client.Hosts, 0, len(e))
-	for _, v := range e {
-		s = append(s, v.(Element).Host)
+	s := make(client.Hosts, len(e))
+	for i, v := range e {
+		s[i] = v.(Element).Host
 	}
 	return s
 }
@@ -73,9 +73,9 @@ func (e Elements) Cached() (cached Cached) {
 }
 
 func (e Elements) Typed() []Element {
-	s := make([]Element, 0, len(e))
-	for _, v := range e {
-		s = append(s, v.(Element))
+	s := make([]Element, len(e))
+	for i, v := range e {
+		s[i] = v.(Element)
 	}
 	return s
 }

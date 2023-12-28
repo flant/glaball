@@ -6,13 +6,13 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"dario.cat/mergo"
 	"github.com/flant/glaball/cmd/common"
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
 	"github.com/hashicorp/go-hclog"
-	"github.com/imdario/mergo"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"
 )

@@ -3,18 +3,18 @@ module github.com/flant/glaball
 go 1.19
 
 require (
+	dario.cat/mergo v1.0.0
 	github.com/ahmetb/go-linq v3.0.0+incompatible
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/go-retryablehttp v0.7.4
-	github.com/imdario/mergo v0.3.16
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
-	github.com/xanzy/go-gitlab v0.90.0
+	github.com/xanzy/go-gitlab v0.95.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 

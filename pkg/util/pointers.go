@@ -182,15 +182,15 @@ func (f *visibilityPtrValue) Type() string {
 	return "string"
 }
 
-type labelsPtrValue struct{ v **gitlab.Labels }
+type labelsPtrValue struct{ v **gitlab.LabelOptions }
 
-func NewLabelsPtrValue(p **gitlab.Labels) *labelsPtrValue {
+func NewLabelsPtrValue(p **gitlab.LabelOptions) *labelsPtrValue {
 	return &labelsPtrValue{p}
 }
 
 func (f *labelsPtrValue) Set(s string) error {
 	if *f.v == nil {
-		*f.v = new(gitlab.Labels)
+		*f.v = new(gitlab.LabelOptions)
 	}
 	**f.v = append(**f.v, s)
 
