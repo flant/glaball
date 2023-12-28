@@ -72,6 +72,10 @@ func (ms *multiSorter[T]) Less(i, j int) bool {
 	return ms.less[k](p, q)
 }
 
+func (ms *multiSorter[T]) Chain(less ...lessFunc[T]) {
+	ms.less = append(ms.less, less...)
+}
+
 // ExampleMultiKeys demonstrates a technique for sorting a struct type using different
 // sets of multiple fields in the comparison. We chain together "Less" functions, each of
 // which compares a single field.
