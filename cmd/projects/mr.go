@@ -215,7 +215,7 @@ func listMergeRequests(h *client.Host, project *gitlab.Project, opt gitlab.ListP
 	defer wg.Done()
 
 	wg.Lock()
-	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt)
+	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt, options...)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()
@@ -246,7 +246,7 @@ func listMergeRequestsByAuthorID(h *client.Host, project *gitlab.Project, author
 	defer wg.Done()
 
 	wg.Lock()
-	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt)
+	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt, options...)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()
@@ -280,7 +280,7 @@ func listMergeRequestsByAssigneeID(h *client.Host, project *gitlab.Project, assi
 	defer wg.Done()
 
 	wg.Lock()
-	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt)
+	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt, options...)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()
@@ -314,7 +314,7 @@ func listMergeRequestsByAssigneeOrAuthorID(h *client.Host, project *gitlab.Proje
 	defer wg.Done()
 
 	wg.Lock()
-	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt)
+	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt, options...)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()
@@ -362,7 +362,7 @@ func listMergeRequestsSearch(h *client.Host, project *gitlab.Project, key string
 	defer wg.Done()
 
 	wg.Lock()
-	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt)
+	list, resp, err := h.Client.MergeRequests.ListProjectMergeRequests(project.ID, &opt, options...)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()

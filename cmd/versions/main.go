@@ -97,7 +97,7 @@ func currentVersion(h *client.Host, wg *limiter.Limiter, data chan<- interface{}
 	defer wg.Done()
 
 	wg.Lock()
-	version, resp, err := h.Client.Version.GetVersion()
+	version, resp, err := h.Client.Version.GetVersion(options...)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()
