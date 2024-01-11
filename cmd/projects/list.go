@@ -1,8 +1,10 @@
 package projects
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/flant/glaball/pkg/client"
@@ -28,6 +30,9 @@ func NewListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List projects.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(orderBy) == 0 {
+				orderBy = []string{"count", projectDefaultField}
+			}
 			return List()
 		},
 	}
@@ -38,7 +43,35 @@ func NewListCmd() *cobra.Command {
 	cmd.Flags().Var(util.NewEnumValue(&sortBy, "asc", "desc"), "sort",
 		"Return projects sorted in asc or desc order. Default is desc")
 
-	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", projectDefaultField},
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{},
+		`Return projects ordered by id, name, path, created_at, updated_at, last_activity_at, or similarity fields.
+repository_size, storage_size, packages_size or wiki_size fields are only allowed for administrators.
+similarity (introduced in GitLab 14.1) is only available when searching and is limited to projects that the current user is a member of.`)
+
+	listProjectsOptionsFlags(cmd, &listProjectsOptions)
+
+	return cmd
+}
+
+func NewLanguagesCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "languages",
+		Short: "List projects with languages.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(orderBy) == 0 {
+				orderBy = []string{"count", projectWithLanguagesDefaultField}
+			}
+			return ListWithLanguages()
+		},
+	}
+
+	cmd.Flags().Var(util.NewEnumValue(&groupBy, "name", "path"), "group_by",
+		"Return projects grouped by id, name, path, fields.")
+
+	cmd.Flags().Var(util.NewEnumValue(&sortBy, "asc", "desc"), "sort",
+		"Return projects sorted in asc or desc order. Default is desc")
+
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{},
 		`Return projects ordered by id, name, path, created_at, updated_at, last_activity_at, or similarity fields.
 repository_size, storage_size, packages_size or wiki_size fields are only allowed for administrators.
 similarity (introduced in GitLab 14.1) is only available when searching and is limited to projects that the current user is a member of.`)
@@ -165,6 +198,147 @@ func List() error {
 	return nil
 }
 
+func ListWithLanguages() error {
+	structT := new(ProjectWithLanguages)
+	if !sort.ValidOrderBy(orderBy, structT) {
+		orderBy = append(orderBy, projectWithLanguagesDefaultField)
+	}
+
+	wg := common.Limiter
+	data := make(chan interface{})
+
+	for _, h := range common.Client.Hosts {
+		fmt.Printf("Fetching projects from %s ...\n", h.URL)
+		wg.Add(1)
+		go listProjects(h, listProjectsOptions, wg, data, common.Client.WithCache())
+	}
+
+	go func() {
+		wg.Wait()
+		close(data)
+	}()
+
+	projectList := make(sort.Elements, 0)
+	for e := range data {
+		projectList = append(projectList, e)
+	}
+
+	if len(projectList) == 0 {
+		return fmt.Errorf("no projects found")
+	}
+
+	projectsWithLanguages := make(chan interface{})
+	for _, v := range projectList.Typed() {
+		wg.Add(1)
+		go getProjectLanguages(v.Host, v.Struct.(*gitlab.Project), wg, projectsWithLanguages, common.Client.WithCache())
+	}
+
+	go func() {
+		wg.Wait()
+		close(projectsWithLanguages)
+	}()
+
+	results, err := sort.FromChannel(projectsWithLanguages, &sort.Options{
+		OrderBy:    orderBy,
+		SortBy:     sortBy,
+		GroupBy:    groupBy,
+		StructType: structT,
+	})
+	if err != nil {
+		return err
+	}
+
+	projectsWithLanguagesFormat := util.Dict{
+		{
+			Key:   "COUNT",
+			Value: "[%d]",
+		},
+		{
+			Key:   "REPOSITORY",
+			Value: "%s",
+		},
+		{
+			Key:   "LANGUAGES",
+			Value: "[%s]",
+		},
+		{
+			Key:   "HOST",
+			Value: "[%s]",
+		},
+		{
+			Key:   "CACHED",
+			Value: "[%s]",
+		},
+	}
+
+	if util.ContainsString(outputFormat, "csv") {
+		w := csv.NewWriter(os.Stdout)
+		w.Write([]string{"HOST", "REPOSITORY", "LANGUAGES"})
+		for _, r := range results {
+			for _, v := range r.Elements.Typed() {
+				p, ok := v.Struct.(*ProjectWithLanguages)
+				if !ok {
+					return fmt.Errorf("unexpected data type: %#v", v.Struct)
+				}
+				if err := w.Write([]string{
+					v.Host.Project,
+					r.Key,
+					p.LanguagesNames(),
+				}); err != nil {
+					return err
+				}
+			}
+		}
+		w.Flush()
+
+	}
+
+	if util.ContainsString(outputFormat, "table") {
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+		if _, err := fmt.Fprintln(w, strings.Join(projectsWithLanguagesFormat.Keys(), "\t")); err != nil {
+			return err
+		}
+		unique := 0
+		total := 0
+
+		for _, r := range results {
+			unique++         // todo
+			total += r.Count //todo
+
+			for _, v := range r.Elements.Typed() {
+				p, ok := v.Struct.(*ProjectWithLanguages)
+				if !ok {
+					return fmt.Errorf("unexpected data type: %#v", v.Struct)
+				}
+
+				if err := projectsWithLanguagesFormat.Print(w, "\t",
+					r.Count,
+					r.Key,
+					p.LanguagesNames(),
+					v.Host.ProjectName(),
+					r.Cached,
+				); err != nil {
+					return err
+				}
+			}
+		}
+
+		if err := totalFormat.Print(w, "\n", unique, total, len(wg.Errors())); err != nil {
+			return err
+		}
+
+		if err := w.Flush(); err != nil {
+			return err
+		}
+	}
+
+	for _, err := range wg.Errors() {
+		hclog.L().Error(err.Err.Error())
+	}
+
+	return nil
+}
+
 func listProjects(h *client.Host, opt gitlab.ListProjectsOptions, wg *limiter.Limiter, data chan<- interface{},
 	options ...gitlab.RequestOptionFunc) error {
 
@@ -192,4 +366,45 @@ func listProjects(h *client.Host, opt gitlab.ListProjectsOptions, wg *limiter.Li
 	}
 
 	return nil
+}
+
+func getProjectLanguages(h *client.Host, project *gitlab.Project, wg *limiter.Limiter,
+	data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
+
+	defer wg.Done()
+
+	wg.Lock()
+	list, resp, err := h.Client.Projects.GetProjectLanguages(project.ID, options...)
+	wg.Unlock()
+	if err != nil {
+		wg.Error(h, err)
+		return err
+	}
+
+	data <- sort.Element{
+		Host: h,
+		Struct: &ProjectWithLanguages{
+			Project:   project,
+			Languages: list},
+		Cached: resp.Header.Get("X-From-Cache") == "1"}
+
+	return nil
+}
+
+type ProjectWithLanguages struct {
+	Project   *gitlab.Project          `json:"project,omitempty"`
+	Languages *gitlab.ProjectLanguages `json:"languages,omitempty"`
+}
+
+func (p ProjectWithLanguages) LanguagesNames() string {
+	if p.Languages == nil || len(*p.Languages) == 0 {
+		return "-"
+	}
+
+	keys := make([]string, 0, len(*p.Languages))
+	for k := range *p.Languages {
+		keys = append(keys, k)
+	}
+
+	return strings.Join(keys, ", ")
 }

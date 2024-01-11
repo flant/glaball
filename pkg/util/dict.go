@@ -14,17 +14,17 @@ type Item struct {
 type Dict []Item
 
 func (d Dict) Keys() []string {
-	s := make([]string, 0, len(d))
-	for _, v := range d {
-		s = append(s, v.Key)
+	s := make([]string, len(d))
+	for i, v := range d {
+		s[i] = v.Key
 	}
 	return s
 }
 
 func (d Dict) Values() []string {
-	s := make([]string, 0, len(d))
-	for _, v := range d {
-		s = append(s, v.Value)
+	s := make([]string, len(d))
+	for i, v := range d {
+		s[i] = v.Value
 	}
 	return s
 }

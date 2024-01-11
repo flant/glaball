@@ -5,7 +5,12 @@ import (
 )
 
 const (
-	projectDefaultField = "web_url"
+	projectDefaultField              = "web_url"
+	projectWithLanguagesDefaultField = "project.web_url"
+)
+
+var (
+	outputFormat []string
 )
 
 func NewCmd() *cobra.Command {
@@ -13,6 +18,10 @@ func NewCmd() *cobra.Command {
 		Use:   "projects",
 		Short: "Projects API",
 	}
+
+	cmd.PersistentFlags().StringSliceVar(&outputFormat, "output", []string{"table"},
+		"Output format: [table csv]. Default: table.")
+
 	cmd.AddCommand(
 		NewEditCmd(),
 		NewFilesCmd(),
@@ -21,6 +30,7 @@ func NewCmd() *cobra.Command {
 		NewMergeRequestsCmd(),
 		NewBranchesCmd(),
 		NewRegistryCmd(),
+		NewLanguagesCmd(),
 	)
 
 	return cmd

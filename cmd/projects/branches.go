@@ -401,7 +401,7 @@ func listProtectedBranches(h *client.Host, project *gitlab.Project, opt gitlab.L
 	defer wg.Done()
 
 	wg.Lock()
-	list, resp, err := h.Client.ProtectedBranches.ListProtectedBranches(project.ID, &opt)
+	list, resp, err := h.Client.ProtectedBranches.ListProtectedBranches(project.ID, &opt, options...)
 	wg.Unlock()
 	if err != nil {
 		wg.Error(h, err)
@@ -490,7 +490,7 @@ func protectRepositoryBranches(h *client.Host, pb *ProjectProtectedBranch, force
 			}
 
 			wg.Lock()
-			_, err := h.Client.ProtectedBranches.UnprotectRepositoryBranches(pb.Project.ID, *new.Name)
+			_, err := h.Client.ProtectedBranches.UnprotectRepositoryBranches(pb.Project.ID, *new.Name, options...)
 			wg.Unlock()
 			if err != nil {
 				wg.Error(h, err)
@@ -502,7 +502,7 @@ func protectRepositoryBranches(h *client.Host, pb *ProjectProtectedBranch, force
 	}
 
 	wg.Lock()
-	v, resp, err := h.Client.ProtectedBranches.ProtectRepositoryBranches(pb.Project.ID, &opt)
+	v, resp, err := h.Client.ProtectedBranches.ProtectRepositoryBranches(pb.Project.ID, &opt, options...)
 	wg.Unlock()
 	if err != nil {
 		wg.Error(h, err)
