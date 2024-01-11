@@ -30,6 +30,9 @@ func NewListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List projects.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(orderBy) == 0 {
+				orderBy = []string{"count", projectDefaultField}
+			}
 			return List()
 		},
 	}
@@ -40,7 +43,7 @@ func NewListCmd() *cobra.Command {
 	cmd.Flags().Var(util.NewEnumValue(&sortBy, "asc", "desc"), "sort",
 		"Return projects sorted in asc or desc order. Default is desc")
 
-	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", projectDefaultField},
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{},
 		`Return projects ordered by id, name, path, created_at, updated_at, last_activity_at, or similarity fields.
 repository_size, storage_size, packages_size or wiki_size fields are only allowed for administrators.
 similarity (introduced in GitLab 14.1) is only available when searching and is limited to projects that the current user is a member of.`)
@@ -55,6 +58,9 @@ func NewLanguagesCmd() *cobra.Command {
 		Use:   "languages",
 		Short: "List projects with languages.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(orderBy) == 0 {
+				orderBy = []string{"count", projectWithLanguagesDefaultField}
+			}
 			return ListWithLanguages()
 		},
 	}
@@ -65,7 +71,7 @@ func NewLanguagesCmd() *cobra.Command {
 	cmd.Flags().Var(util.NewEnumValue(&sortBy, "asc", "desc"), "sort",
 		"Return projects sorted in asc or desc order. Default is desc")
 
-	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"count", projectWithLanguagesDefaultField},
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{},
 		`Return projects ordered by id, name, path, created_at, updated_at, last_activity_at, or similarity fields.
 repository_size, storage_size, packages_size or wiki_size fields are only allowed for administrators.
 similarity (introduced in GitLab 14.1) is only available when searching and is limited to projects that the current user is a member of.`)
