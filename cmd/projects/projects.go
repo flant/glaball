@@ -5,7 +5,8 @@ import (
 )
 
 const (
-	projectDefaultField = "web_url"
+	projectDefaultField              = "web_url"
+	projectWithLanguagesDefaultField = "project.web_url"
 )
 
 func NewCmd() *cobra.Command {
@@ -21,6 +22,7 @@ func NewCmd() *cobra.Command {
 		NewMergeRequestsCmd(),
 		NewBranchesCmd(),
 		NewRegistryCmd(),
+		NewLanguagesCmd(),
 	)
 
 	return cmd
