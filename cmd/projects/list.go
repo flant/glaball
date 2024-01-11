@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
 	"strings"
@@ -264,41 +265,65 @@ func ListWithLanguages() error {
 		},
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
-	if _, err := fmt.Fprintln(w, strings.Join(projectsWithLanguagesFormat.Keys(), "\t")); err != nil {
-		return err
-	}
-	unique := 0
-	total := 0
-
-	for _, r := range results {
-		unique++         // todo
-		total += r.Count //todo
-
-		for _, v := range r.Elements.Typed() {
-			p, ok := v.Struct.(*ProjectWithLanguages)
-			if !ok {
-				return fmt.Errorf("unexpected data type: %#v", v.Struct)
-			}
-
-			if err := projectsWithLanguagesFormat.Print(w, "\t",
-				r.Count,
-				r.Key,
-				p.LanguagesNames(),
-				v.Host.ProjectName(),
-				r.Cached,
-			); err != nil {
-				return err
+	if util.ContainsString(outputFormat, "csv") {
+		w := csv.NewWriter(os.Stdout)
+		w.Write([]string{"HOST", "REPOSITORY", "LANGUAGES"})
+		for _, r := range results {
+			for _, v := range r.Elements.Typed() {
+				p, ok := v.Struct.(*ProjectWithLanguages)
+				if !ok {
+					return fmt.Errorf("unexpected data type: %#v", v.Struct)
+				}
+				if err := w.Write([]string{
+					v.Host.Project,
+					r.Key,
+					p.LanguagesNames(),
+				}); err != nil {
+					return err
+				}
 			}
 		}
+		w.Flush()
+
 	}
 
-	if err := totalFormat.Print(w, "\n", unique, total, len(wg.Errors())); err != nil {
-		return err
-	}
+	if util.ContainsString(outputFormat, "table") {
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
+		if _, err := fmt.Fprintln(w, strings.Join(projectsWithLanguagesFormat.Keys(), "\t")); err != nil {
+			return err
+		}
+		unique := 0
+		total := 0
 
-	if err := w.Flush(); err != nil {
-		return err
+		for _, r := range results {
+			unique++         // todo
+			total += r.Count //todo
+
+			for _, v := range r.Elements.Typed() {
+				p, ok := v.Struct.(*ProjectWithLanguages)
+				if !ok {
+					return fmt.Errorf("unexpected data type: %#v", v.Struct)
+				}
+
+				if err := projectsWithLanguagesFormat.Print(w, "\t",
+					r.Count,
+					r.Key,
+					p.LanguagesNames(),
+					v.Host.ProjectName(),
+					r.Cached,
+				); err != nil {
+					return err
+				}
+			}
+		}
+
+		if err := totalFormat.Print(w, "\n", unique, total, len(wg.Errors())); err != nil {
+			return err
+		}
+
+		if err := w.Flush(); err != nil {
+			return err
+		}
 	}
 
 	for _, err := range wg.Errors() {

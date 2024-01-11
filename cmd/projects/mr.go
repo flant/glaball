@@ -25,7 +25,6 @@ import (
 var (
 	listProjectMergeRequestsOptions = gitlab.ListProjectMergeRequestsOptions{ListOptions: gitlab.ListOptions{PerPage: 100}}
 
-	outputFormat []string
 	byNamespaces []string
 )
 

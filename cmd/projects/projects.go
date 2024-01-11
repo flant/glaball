@@ -9,11 +9,19 @@ const (
 	projectWithLanguagesDefaultField = "project.web_url"
 )
 
+var (
+	outputFormat []string
+)
+
 func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "projects",
 		Short: "Projects API",
 	}
+
+	cmd.PersistentFlags().StringSliceVar(&outputFormat, "output", []string{"table"},
+		"Output format: [table csv]. Default: table.")
+
 	cmd.AddCommand(
 		NewEditCmd(),
 		NewFilesCmd(),
