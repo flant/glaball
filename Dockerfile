@@ -1,4 +1,4 @@
-FROM golang:1.19-buster as builder
+FROM golang:1.21-bullseye as builder
 
 ARG versionflags
 
@@ -9,7 +9,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build -v -a -tags netgo -ldflags="-extldflags '-static' -s -w $versionflags" -o build/glaball *.go
 
 
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
