@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"text/tabwriter"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v3"
 	"github.com/flant/glaball/pkg/util"
+	"github.com/jmoiron/sqlx/reflectx"
 
 	"github.com/flant/glaball/cmd/common"
 
@@ -20,6 +22,10 @@ import (
 )
 
 var (
+	mapper = reflectx.NewMapper("json")
+
+	columns = []string{"Host.Project", "Struct.name", "Struct.scopes", "Struct.active", "Struct.expires_at", "Cached"}
+
 	personalAccessTokensFormat = util.Dict{
 		{
 			Key:   "HOST",
@@ -76,6 +82,35 @@ func NewCmd() *cobra.Command {
 func Tokens() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	typ := new(sort.Element[*gitlab.PersonalAccessToken])
+	rt := reflect.TypeOf(typ)
+	m := mapper.TypeMap(rt)
+
+	rtstruct := reflect.TypeOf(typ.Struct)
+	mstruct := mapper.TypeMap(rtstruct)
+
+	fmt.Printf("\nvalid fields:\n")
+	for k := range m.Paths {
+		fmt.Printf("%s\n", k)
+	}
+
+	fmt.Printf("\nvalid fields:\n")
+	for _, v := range mstruct.Paths {
+		fmt.Printf("%s\n", v.Name)
+	}
+
+	// check columns
+	fmt.Printf("\ncheck columns:\n")
+	for _, p := range columns {
+		if fi := m.GetByPath(p); fi == nil {
+			return fmt.Errorf("unknown field: %s", p)
+		} else {
+			fmt.Printf("%s\n", fi.Path)
+		}
+	}
+
+	return nil
 
 	wg := limiter.NewLimiter(limiter.DefaultLimit)
 	data := make(chan sort.Element[*gitlab.PersonalAccessToken])

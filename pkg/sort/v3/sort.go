@@ -33,10 +33,13 @@ type Options struct {
 }
 
 type Result[T any] struct {
-	Count    int
 	Key      string
 	Elements Elements[T]
 	Cached   Cached
+}
+
+func (r Result[T]) Count() int {
+	return len(r.Elements)
 }
 
 type Element[T any] struct {
@@ -64,7 +67,7 @@ func (e Elements[T]) Hosts() client.Hosts {
 	return s
 }
 
-func (e Elements[T]) Cached() (cached Cached) {
+func (e Elements[T]) Cached() Cached {
 	for _, v := range e {
 		if !v.Cached {
 			return false
@@ -77,7 +80,7 @@ type ByLen[T any] []Result[T]
 
 func (a ByLen[T]) Len() int           { return len(a) }
 func (a ByLen[T]) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByLen[T]) Less(i, j int) bool { return a[i].Count < a[j].Count }
+func (a ByLen[T]) Less(i, j int) bool { return a[i].Count() < a[j].Count() }
 
 func FromChannel[T any](ch <-chan Element[T], opt *Options) ([]Result[T], error) {
 	var (
@@ -116,7 +119,7 @@ func FromChannel[T any](ch <-chan Element[T], opt *Options) ([]Result[T], error)
 	}
 
 	byLenFn := func(p1, p2 *Result[T]) bool {
-		return p1.Count < p2.Count
+		return p1.Count() < p2.Count()
 	}
 
 	// byFieldIndexFn := func(p1, p2 *Element[T], fi *reflectx.FieldInfo) bool {
@@ -125,7 +128,6 @@ func FromChannel[T any](ch <-chan Element[T], opt *Options) ([]Result[T], error)
 	// }
 
 	var ms *multiSorter[T]
-	//orderedQuery = query.OrderByDescending(OrderBy[T](groupBy, first))
 	switch {
 	case first.Name == byHostFI.Name:
 		// Return Host.Project name
@@ -144,7 +146,7 @@ func FromChannel[T any](ch <-chan Element[T], opt *Options) ([]Result[T], error)
 	// 	if v == nil {
 	// 		return nil, fmt.Errorf("invalid struct field: %s", key)
 	// 	}
-	// 	ms.less = append(ms.less, byFieldIndexFn)
+	// 	ms.less = append(ms.less, byFieldIndexFn[T](v.Index))
 	// }
 
 	if groupBy != nil && first != nil && first.Name == byLenFI.Name {
@@ -166,7 +168,6 @@ func FromChannel[T any](ch <-chan Element[T], opt *Options) ([]Result[T], error)
 		})
 		result := lo.MapToSlice(query, func(key string, value []Element[T]) Result[T] {
 			return Result[T]{
-				Count:    len(value),
 				Key:      key,
 				Elements: value,
 				Cached:   Elements[T](value).Cached(),
@@ -186,7 +187,6 @@ func FromChannel[T any](ch <-chan Element[T], opt *Options) ([]Result[T], error)
 				if fv := reflectx.FieldByIndexesReadOnly(rv, fi.Index).Interface(); fv != nil {
 					hclog.L().Debug("item", "field", hclog.Fmt("%v", fv))
 					result[i] = Result[T]{
-						Count:    1,
 						Key:      fmt.Sprintf("%v", fv),
 						Elements: []Element[T]{v},
 						Cached:   Elements[T]([]Element[T]{v}).Cached(),
@@ -245,6 +245,13 @@ func (s *Sorter[T]) Sort(data []Result[T]) {
 
 func (s *Sorter[T]) Add(keys ...sort.Interface) {
 	s.keys = append(s.keys, keys...)
+}
+
+func byFieldIndexFn[T any](fi *reflectx.FieldInfo) func(p1, p2 *Element[T]) bool {
+	return func(p1, p2 *Element[T]) bool {
+		return reflectx.FieldByIndexesReadOnly(reflect.ValueOf(p1.Struct), fi.Index).String() <
+			reflectx.FieldByIndexesReadOnly(reflect.ValueOf(p2.Struct), fi.Index).String()
+	}
 }
 
 // func FromChannelQuery[T any](ch chan T, opt *Options) (linq.Query, error) {
