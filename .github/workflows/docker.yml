@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - '**'
-    branches:
-      - '**'
 
 jobs:
 
@@ -45,7 +43,6 @@ jobs:
 
     - name: Build and push
       uses: docker/build-push-action@v5
-      if: startsWith(github.ref, 'refs/tags/')
       with:
         context: .
         build-args: |
