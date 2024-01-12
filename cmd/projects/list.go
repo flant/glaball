@@ -401,10 +401,10 @@ func (p ProjectWithLanguages) LanguagesNames() string {
 		return "-"
 	}
 
-	keys := make([]string, 0, len(*p.Languages))
-	for k := range *p.Languages {
-		keys = append(keys, k)
+	names := make([]string, 0, len(*p.Languages))
+	for k, v := range *p.Languages {
+		names = util.InsertString(names, fmt.Sprintf("%s: %.2f", k, v))
 	}
 
-	return strings.Join(keys, ", ")
+	return strings.Join(names, ", ")
 }
