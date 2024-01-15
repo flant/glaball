@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	go_sort "sort"
 	"strings"
 	"text/tabwriter"
 
@@ -283,7 +284,7 @@ func ListWithLanguages() error {
 				if err := w.Write([]string{
 					v.Host.Project,
 					r.Key,
-					p.LanguagesNames(),
+					p.LanguagesToString(),
 				}); err != nil {
 					return err
 				}
@@ -314,7 +315,7 @@ func ListWithLanguages() error {
 				if err := projectsWithLanguagesFormat.Print(w, "\t",
 					r.Count,
 					r.Key,
-					p.LanguagesNames(),
+					p.LanguagesToString(),
 					v.Host.ProjectName(),
 					r.Cached,
 				); err != nil {
@@ -396,14 +397,35 @@ type ProjectWithLanguages struct {
 	Languages *gitlab.ProjectLanguages `json:"languages,omitempty"`
 }
 
-func (p ProjectWithLanguages) LanguagesNames() string {
+type ProjectLanguage struct {
+	Name    string
+	Percent float32
+}
+
+func (pl ProjectLanguage) String() string {
+	return fmt.Sprintf("%s: %.2f", pl.Name, pl.Percent)
+}
+
+func (p ProjectWithLanguages) LanguagesToString() string {
 	if p.Languages == nil || len(*p.Languages) == 0 {
 		return "-"
 	}
 
-	names := make([]string, 0, len(*p.Languages))
+	languages := make([]*ProjectLanguage, 0, len(*p.Languages))
 	for k, v := range *p.Languages {
-		names = util.InsertString(names, fmt.Sprintf("%s: %.2f", k, v))
+		// insertion sort by percent
+		idx := go_sort.Search(len(languages), func(i int) bool { return languages[i].Percent <= v })
+		if idx == len(languages) {
+			languages = append(languages, &ProjectLanguage{k, v})
+		} else {
+			languages = append(languages[:idx+1], languages[idx:]...)
+			languages[idx] = &ProjectLanguage{k, v}
+		}
+	}
+
+	names := make([]string, len(languages))
+	for i, v := range languages {
+		names[i] = v.String()
 	}
 
 	return strings.Join(names, ", ")
