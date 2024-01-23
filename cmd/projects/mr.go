@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
+	"github.com/google/go-github/v58/github"
 
 	"github.com/flant/glaball/cmd/common"
 
@@ -214,9 +216,42 @@ func listProjectsByNamespace(h *client.Host, namespaces []string, opt gitlab.Lis
 	return nil
 }
 
+func listRepositories(h *client.Host, opt github.RepositoryListByOrgOptions,
+	wg *limiter.Limiter, data chan<- interface{}) error {
+	defer wg.Done()
+
+	ctx := context.TODO()
+	wg.Lock()
+	list, resp, err := h.GithubClient.Repositories.ListByOrg(ctx, h.Org, &opt)
+	if err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return err
+	}
+	wg.Unlock()
+
+	for _, v := range list {
+		data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+
+	}
+
+	if resp.NextPage > 0 {
+		wg.Add(1)
+		opt.Page = resp.NextPage
+		go listRepositories(h, opt, wg, data)
+	}
+
+	return nil
+}
+
 func ListProjectsByNamespace(h *client.Host, namespaces []string, opt gitlab.ListProjectsOptions,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
 	return listProjectsByNamespace(h, namespaces, opt, wg, data, options...)
+}
+
+func ListRepositories(h *client.Host, opt github.RepositoryListByOrgOptions,
+	wg *limiter.Limiter, data chan<- interface{}) error {
+	return listRepositories(h, opt, wg, data)
 }
 
 func listMergeRequests(h *client.Host, project *gitlab.Project, opt gitlab.ListProjectMergeRequestsOptions,
@@ -360,10 +395,60 @@ func listMergeRequestsByAssigneeOrAuthorID(h *client.Host, project *gitlab.Proje
 	return nil
 }
 
+func listPullRequestsByAssigneeOrAuthorID(h *client.Host, repository *github.Repository, IDs []int,
+	opt github.PullRequestListOptions, wg *limiter.Limiter, data chan<- interface{}) error {
+	defer wg.Done()
+
+	ctx := context.TODO()
+	wg.Lock()
+	hclog.L().Debug("searching pull requests", "owner", h.Org, "repo", repository.GetName())
+	list, resp, err := h.GithubClient.PullRequests.List(ctx, h.Org, repository.GetName(), &opt)
+	if err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return err
+	}
+	wg.Unlock()
+
+	for _, v := range list {
+		if len(IDs) == 0 {
+			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+			continue
+		}
+
+		// if pr has assignee, then check and continue
+		if v.Assignee != nil {
+			if util.ContainsInt(IDs, int(v.Assignee.GetID())) {
+				data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+			}
+			continue
+		}
+
+		// otherwise check the author
+		if v.User != nil && util.ContainsInt(IDs, int(v.User.GetID())) {
+			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+		}
+	}
+
+	if resp.NextPage > 0 {
+		wg.Add(1)
+		opt.Page = resp.NextPage
+		go listPullRequestsByAssigneeOrAuthorID(h, repository, IDs, opt, wg, data)
+	}
+
+	return nil
+}
+
 // authorIDs slice must be sorted in ascending order
 func ListMergeRequestsByAuthorOrAssigneeID(h *client.Host, project *gitlab.Project, IDs []int, opt gitlab.ListProjectMergeRequestsOptions,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
 	return listMergeRequestsByAssigneeOrAuthorID(h, project, IDs, opt, wg, data, options...)
+}
+
+// authorIDs slice must be sorted in ascending order
+func ListPullRequestsByAuthorOrAssigneeID(h *client.Host, repository *github.Repository, IDs []int,
+	opt github.PullRequestListOptions, wg *limiter.Limiter, data chan<- interface{}) error {
+	return listPullRequestsByAssigneeOrAuthorID(h, repository, IDs, opt, wg, data)
 }
 
 func listMergeRequestsSearch(h *client.Host, project *gitlab.Project, key string, value *regexp.Regexp, opt gitlab.ListProjectMergeRequestsOptions,
