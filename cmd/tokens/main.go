@@ -22,9 +22,12 @@ import (
 )
 
 var (
-	mapper = reflectx.NewMapper("json")
+	mapper              = reflectx.NewMapper("json")
+	listProjectsOptions = gitlab.ListProjectsOptions{ListOptions: gitlab.ListOptions{PerPage: 100}}
+	groupBy, sortBy     string
+	orderBy             []string
 
-	columns = []string{"Host.Project", "Struct.name", "Struct.scopes", "Struct.active", "Struct.expires_at", "Cached"}
+	columns = []string{"Host.Project", "name", "scopes", "active", "expires_at", "Cached"}
 
 	personalAccessTokensFormat = util.Dict{
 		{
@@ -67,6 +70,14 @@ var (
 )
 
 func NewCmd() *cobra.Command {
+	typ := new(sort.Element[*gitlab.PersonalAccessToken])
+	rt := reflect.TypeOf(typ.Struct)
+	m := mapper.TypeMap(rt)
+	validFields := make([]string, 0, len(m.Paths))
+	for k, v := range m.Names {
+		validFields = append(validFields, v.Name)
+		fmt.Printf("%s\n", k)
+	}
 	cmd := &cobra.Command{
 		Use:   "tokens",
 		Short: "Retrieve tokens",
@@ -75,6 +86,15 @@ func NewCmd() *cobra.Command {
 			return Tokens()
 		},
 	}
+
+	cmd.Flags().Var(util.NewEnumValue(&groupBy, "name", "path"), "group_by",
+		"Return projects grouped by id, name, path, fields.")
+
+	cmd.Flags().Var(util.NewEnumValue(&sortBy, "asc", "desc"), "sort",
+		"Return projects sorted in asc or desc order. Default is desc")
+
+	cmd.Flags().StringSliceVar(&orderBy, "order_by", []string{"name"},
+		fmt.Sprintf(`Return projects ordered by %s.`, strings.Join(validFields, ", ")))
 
 	return cmd
 }
@@ -104,18 +124,22 @@ func Tokens() error {
 	fmt.Printf("\ncheck columns:\n")
 	for _, p := range columns {
 		if fi := m.GetByPath(p); fi == nil {
-			return fmt.Errorf("unknown field: %s", p)
+			if fi := m.GetByPath("Struct." + p); fi == nil {
+				return fmt.Errorf("unknown field: %s", p)
+			} else {
+				fmt.Printf("%s\n", fi.Path)
+			}
 		} else {
 			fmt.Printf("%s\n", fi.Path)
 		}
 	}
 
-	return nil
+	// return nil
 
 	wg := limiter.NewLimiter(limiter.DefaultLimit)
 	data := make(chan sort.Element[*gitlab.PersonalAccessToken])
 	for _, h := range common.Client.Hosts {
-		fmt.Printf("Getting user tokens from %s ...\n", h.URL)
+		fmt.Printf("Fetching user tokens from %s ...\n", h.URL)
 		wg.Add(1)
 		go listPersonalAccessTokens(h, gitlab.ListPersonalAccessTokensOptions{
 			ListOptions: gitlab.ListOptions{
