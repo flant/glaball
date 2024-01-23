@@ -11,6 +11,8 @@ import (
 
 	"github.com/flant/glaball/pkg/config"
 	"github.com/flant/glaball/pkg/util"
+	"github.com/gofri/go-github-ratelimit/github_ratelimit"
+	"github.com/google/go-github/v58/github"
 	"github.com/gregjones/httpcache"
 
 	"github.com/ahmetb/go-linq"
@@ -18,6 +20,11 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
+)
+
+const (
+	Gitlab string = "gitlab"
+	Github string = "github"
 )
 
 type Client struct {
@@ -60,6 +67,8 @@ func (h Hosts) Less(i, j int) bool {
 type Host struct {
 	Team, Project, Name, URL string
 	Client                   *gitlab.Client
+	GithubClient             *github.Client
+	Org                      string // TODO:
 }
 
 func (h Host) FullName() string {
@@ -137,6 +146,12 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		return nil, err
 	}
 
+	// TODO:
+	ghttpClient, err := github_ratelimit.NewRateLimitWaiterClient(httpClient.Transport)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create github http client")
+	}
+
 	options := []gitlab.ClientOptionFunc{
 		gitlab.WithHTTPClient(httpClient),
 	}
@@ -153,32 +168,47 @@ func NewClient(cfg *config.Config) (*Client, error) {
 				if !filter.MatchString(fullName) {
 					continue
 				}
-				if host.URL == "" {
-					return nil, fmt.Errorf("missing url for host %q", fullName)
-				}
 				if host.Token == "" {
 					return nil, fmt.Errorf("missing token for host %q", fullName)
 				}
-				if cfg.Cache.Enabled && !host.RateLimiter.Enabled {
-					options = append(options, gitlab.WithCustomLimiter(&FakeLimiter{}))
-				}
-				gl, err := gitlab.NewClient(host.Token,
-					append(options, gitlab.WithBaseURL(host.URL))...)
-				if err != nil {
-					return nil, err
-				}
 
-				if host.IP != "" {
-					customAddresses[gl.BaseURL().Hostname()] = host.IP
-				}
+				// TODO:
+				switch host.Type {
+				case Github:
+					// TODO: add cache
+					cfg.Cache.Enabled = false
 
-				client.Hosts = append(client.Hosts, &Host{
-					Team:    team,
-					Project: project,
-					Name:    name,
-					URL:     host.URL,
-					Client:  gl,
-				})
+					client.Hosts = append(client.Hosts, &Host{
+						Team:         team,
+						Project:      project,
+						Name:         name,
+						URL:          host.URL,
+						Org:          host.Org,
+						GithubClient: github.NewClient(ghttpClient).WithAuthToken(host.Token),
+					})
+				default:
+					if host.URL == "" {
+						return nil, fmt.Errorf("missing url for host %q", fullName)
+					}
+					if cfg.Cache.Enabled && !host.RateLimiter.Enabled {
+						options = append(options, gitlab.WithCustomLimiter(&FakeLimiter{}))
+					}
+					gl, err := gitlab.NewClient(host.Token,
+						append(options, gitlab.WithBaseURL(host.URL))...)
+					if err != nil {
+						return nil, err
+					}
+					if host.IP != "" {
+						customAddresses[gl.BaseURL().Hostname()] = host.IP
+					}
+					client.Hosts = append(client.Hosts, &Host{
+						Team:    team,
+						Project: project,
+						Name:    name,
+						URL:     host.URL,
+						Client:  gl,
+					})
+				}
 			}
 		}
 	}
