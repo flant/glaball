@@ -12,8 +12,12 @@ func ValidFieldValue(keys []string, v interface{}) (interface{}, error) {
 	rv := reflect.ValueOf(v)
 	for _, k := range keys {
 		if fi := m.GetByPath(k); fi != nil {
-			if fv := reflectx.FieldByIndexesReadOnly(rv, fi.Index).Interface(); fv != nil && fv != v {
-				return fv, nil
+			fv := reflectx.FieldByIndexesReadOnly(rv, fi.Index)
+			if fi.Field.Type.Kind() == reflect.Ptr {
+				fv = fv.Elem()
+			}
+			if rfv := fv.Interface(); rfv != nil && rfv != v {
+				return rfv, nil
 			}
 		}
 	}
