@@ -252,7 +252,7 @@ func listProjectsFilesFromGithub(h *client.Host, filepath, ref string, re []*reg
 	for _, v := range list {
 		wg.Add(1)
 		// TODO: handle deadlock when no files found
-		go getRawFileFromGithub(h, v, filepath, ref, re, wg, data, options...)
+		go getRawFileFromGithub(h, v, filepath, ref, re, wg, data)
 	}
 
 	if resp.NextPage > 0 {
@@ -293,7 +293,7 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 
 // TODO:
 func getRawFileFromGithub(h *client.Host, repository *github.Repository, filepath, ref string, re []*regexp.Regexp,
-	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
+	wg *limiter.Limiter, data chan<- interface{}) {
 
 	defer wg.Done()
 
@@ -301,8 +301,9 @@ func getRawFileFromGithub(h *client.Host, repository *github.Repository, filepat
 	if ref == "" {
 		targetRef = repository.GetDefaultBranch()
 	}
-	wg.Lock()
+	// TODO:
 	ctx := context.TODO()
+	wg.Lock()
 	fileContent, _, resp, err := h.GithubClient.Repositories.GetContents(ctx,
 		repository.Owner.GetLogin(),
 		repository.GetName(),
@@ -484,4 +485,9 @@ func ListProjectsFilesFromGithub(h *client.Host, filepath, ref string, re []*reg
 func GetRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, re []*regexp.Regexp,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 	getRawFile(h, project, filepath, ref, re, wg, data, options...)
+}
+
+func GetRawFileFromGithub(h *client.Host, repository *github.Repository, filepath, ref string, re []*regexp.Regexp,
+	wg *limiter.Limiter, data chan<- interface{}) {
+	getRawFileFromGithub(h, repository, filepath, ref, re, wg, data)
 }

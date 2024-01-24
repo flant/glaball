@@ -182,7 +182,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 						Team:         team,
 						Project:      project,
 						Name:         name,
-						URL:          host.URL,
+						URL:          fmt.Sprintf("https://github.com/%s", host.Org), // TODO:
 						Org:          host.Org,
 						GithubClient: github.NewClient(ghttpClient).WithAuthToken(host.Token),
 					})
