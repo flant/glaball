@@ -392,7 +392,6 @@ func listPullRequestsByAssigneeOrAuthorID(h *client.Host, repository *github.Rep
 
 	ctx := context.TODO()
 	wg.Lock()
-	hclog.L().Debug("searching pull requests", "owner", h.Org, "repo", repository.GetName())
 	list, resp, err := h.GithubClient.PullRequests.List(ctx, h.Org, repository.GetName(), &opt)
 	if err != nil {
 		wg.Error(h, err)
@@ -440,6 +439,38 @@ func ListMergeRequestsByAuthorOrAssigneeID(h *client.Host, project *gitlab.Proje
 func ListPullRequestsByAuthorOrAssigneeID(h *client.Host, repository *github.Repository, IDs []int,
 	opt github.PullRequestListOptions, wg *limiter.Limiter, data chan<- interface{}) error {
 	return listPullRequestsByAssigneeOrAuthorID(h, repository, IDs, opt, wg, data)
+}
+
+func listPullRequests(h *client.Host, repository *github.Repository, opt github.PullRequestListOptions,
+	wg *limiter.Limiter, data chan<- interface{}) error {
+	defer wg.Done()
+
+	ctx := context.TODO()
+	wg.Lock()
+	list, resp, err := h.GithubClient.PullRequests.List(ctx, h.Org, repository.GetName(), &opt)
+	if err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return err
+	}
+	wg.Unlock()
+
+	for _, v := range list {
+		data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+	}
+
+	if resp.NextPage > 0 {
+		wg.Add(1)
+		opt.Page = resp.NextPage
+		go listPullRequests(h, repository, opt, wg, data)
+	}
+
+	return nil
+}
+
+func ListPullRequests(h *client.Host, repository *github.Repository, opt github.PullRequestListOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
+	return listPullRequests(h, repository, opt, wg, data)
 }
 
 func listMergeRequestsSearch(h *client.Host, project *gitlab.Project, key string, value *regexp.Regexp, opt gitlab.ListProjectMergeRequestsOptions,

@@ -12,6 +12,7 @@ import (
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
+	"github.com/google/go-github/v58/github"
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"
@@ -517,4 +518,14 @@ func protectRepositoryBranches(h *client.Host, pb *ProjectProtectedBranch, force
 		Cached: resp.Header.Get("X-From-Cache") == "1"}
 
 	return nil
+}
+
+type ProjectBranch struct {
+	Project *gitlab.Project `json:"project,omitempty"`
+	Branch  *gitlab.Branch  `json:"branch,omitempty"`
+}
+
+type RepositoryBranch struct {
+	Repository *github.Repository `json:"repository,omitempty"`
+	Branch     *github.Branch     `json:"branch,omitempty"`
 }
