@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
+	"github.com/google/go-github/v58/github"
 
 	"github.com/flant/glaball/cmd/common"
 
@@ -31,9 +33,9 @@ func NewListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List projects.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(orderBy) == 0 {
-				orderBy = []string{"count", projectDefaultField}
-			}
+			// if len(orderBy) == 0 {
+			// 	orderBy = []string{"count", projectDefaultField}
+			// }
 			return List()
 		},
 	}
@@ -60,7 +62,8 @@ func NewLanguagesCmd() *cobra.Command {
 		Short: "List projects with languages.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(orderBy) == 0 {
-				orderBy = []string{"count", projectWithLanguagesDefaultField}
+				//orderBy = []string{"count", projectWithLanguagesDefaultField}
+				orderBy = []string{"count", "html_url"}
 			}
 			return ListWithLanguages()
 		},
@@ -148,8 +151,11 @@ Available in GitLab Premium self-managed, GitLab Premium SaaS, and higher tiers.
 }
 
 func List() error {
-	if !sort.ValidOrderBy(orderBy, gitlab.Project{}) {
-		orderBy = append(orderBy, projectDefaultField)
+	// if !sort.ValidOrderBy(orderBy, gitlab.Project{}) {
+	// 	orderBy = append(orderBy, projectDefaultField)
+	// }
+	if !sort.ValidOrderBy(orderBy, github.Repository{}) {
+		orderBy = append(orderBy, "html_url")
 	}
 
 	wg := common.Limiter
@@ -168,10 +174,11 @@ func List() error {
 	}()
 
 	results, err := sort.FromChannel(data, &sort.Options{
-		OrderBy:    orderBy,
-		SortBy:     sortBy,
-		GroupBy:    groupBy,
-		StructType: gitlab.Project{},
+		OrderBy: orderBy,
+		SortBy:  sortBy,
+		GroupBy: groupBy,
+		// StructType: gitlab.Project{},
+		StructType: github.Repository{},
 	})
 	if err != nil {
 		return err
@@ -185,6 +192,9 @@ func List() error {
 	for _, v := range results {
 		unique++         // todo
 		total += v.Count //todo
+		// for _, r := range v.Elements.Typed() {
+		// 	fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, *r.Struct.(*github.Repository).HTMLURL, v.Elements.Hosts().Projects(common.Config.ShowAll), v.Cached)
+		// }
 		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(common.Config.ShowAll), v.Cached)
 	}
 
@@ -345,6 +355,31 @@ func listProjects(h *client.Host, opt gitlab.ListProjectsOptions, wg *limiter.Li
 
 	defer wg.Done()
 
+	// TODO:
+	if h.GithubClient != nil {
+		ctx := context.TODO()
+		list, resp, err := h.GithubClient.Repositories.ListByOrg(ctx, h.Org,
+			&github.RepositoryListByOrgOptions{ListOptions: github.ListOptions{PerPage: 100}},
+		)
+		if err != nil {
+			wg.Error(h, err)
+			return err
+		}
+
+		for _, v := range list {
+			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+		}
+
+		if resp.NextPage > 0 {
+			wg.Add(1)
+			opt.Page = resp.NextPage
+			go listProjects(h, opt, wg, data, options...)
+		}
+
+		return nil
+
+	}
+
 	wg.Lock()
 
 	list, resp, err := h.Client.Projects.ListProjects(&opt, options...)
@@ -354,7 +389,7 @@ func listProjects(h *client.Host, opt gitlab.ListProjectsOptions, wg *limiter.Li
 		return err
 	}
 
-	wg.Unlock()
+	wg.Unlock() // TODO: ratelimiter
 
 	for _, v := range list {
 		data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}

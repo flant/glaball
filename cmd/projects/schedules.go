@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
+	"github.com/google/go-github/v58/github"
 
 	"github.com/flant/glaball/cmd/common"
 
@@ -577,7 +579,7 @@ func listPipelineSchedules(h *client.Host, project *gitlab.Project, opt gitlab.L
 	wg.Unlock()
 
 	// filter schedules by matching descriptions if any
-	filteredList := make([]*gitlab.PipelineSchedule, 0, len(list))
+	filteredList := make([]*gitlab.PipelineSchedule, 0, len(desc))
 filter:
 	for _, v := range list {
 		for _, p := range desc {
@@ -684,10 +686,122 @@ filter:
 	}
 }
 
+func listWorkflowRuns(h *client.Host, repository *github.Repository, opt github.ListOptions,
+	desc []*regexp.Regexp, withLastWorkflowRuns int, withFileContent bool, wg *limiter.Limiter, data chan<- interface{}) {
+
+	defer wg.Done()
+
+	ctx := context.TODO()
+	wg.Lock()
+	list, resp, err := h.GithubClient.Actions.ListWorkflows(ctx, h.Org, repository.GetName(), &opt)
+	if err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return
+	}
+	wg.Unlock()
+
+	// filter schedules by matching descriptions if any
+	filteredList := make([]*github.Workflow, 0, len(desc))
+filter:
+	for _, v := range list.Workflows {
+		for _, p := range desc {
+			if p.MatchString(v.GetName()) {
+				filteredList = append(filteredList, v)
+				continue filter
+			}
+		}
+	}
+	if len(filteredList) == 0 {
+		// if no workflows were found and no --active flag value was provided
+		// return repository with nil workflow
+		if active == nil && status == nil {
+			data <- sort.Element{
+				Host:   h,
+				Struct: RepositoryWorkflow{repository, nil, nil, nil},
+				Cached: resp.Header.Get("X-From-Cache") == "1"}
+		}
+	} else {
+		for _, v := range filteredList {
+			runs := new(github.WorkflowRuns)
+			if withLastWorkflowRuns > 0 {
+				// get last workflow runs
+				wg.Lock()
+				runs, _, err = h.GithubClient.Actions.ListWorkflowRunsByID(ctx,
+					h.Org,
+					repository.GetName(),
+					v.GetID(),
+					&github.ListWorkflowRunsOptions{
+						Branch:              repository.GetDefaultBranch(),
+						ExcludePullRequests: true,
+						ListOptions: github.ListOptions{
+							PerPage: withLastWorkflowRuns,
+						},
+					})
+				if err != nil {
+					wg.Error(h, err)
+					wg.Unlock()
+					continue
+				}
+				wg.Unlock()
+			}
+
+			// check workflow state
+			if active != nil && (v.GetState() == "active") != *active {
+				continue
+			}
+			// check last workflow run status
+			// ignore workflow runs with empty status if defined
+			if status != nil {
+				if runs.GetTotalCount() == 0 {
+					continue
+				}
+				if s := runs.WorkflowRuns[0].GetStatus(); s == "" || s != *status {
+					continue
+				}
+			}
+
+			var fileContent *github.RepositoryContent
+			if withFileContent {
+				wg.Lock()
+				fileContent, _, _, err = h.GithubClient.Repositories.GetContents(ctx,
+					repository.Owner.GetLogin(),
+					repository.GetName(),
+					v.GetPath(),
+					&github.RepositoryContentGetOptions{Ref: repository.GetDefaultBranch()})
+				wg.Unlock()
+				if err != nil {
+					wg.Error(h, err)
+					continue
+				}
+			}
+
+			// push result to channel
+			data <- sort.Element{
+				Host:   h,
+				Struct: RepositoryWorkflow{repository, v, runs, fileContent},
+				Cached: resp.Header.Get("X-From-Cache") == "1"}
+		}
+	}
+
+	if resp.NextPage > 0 {
+		wg.Add(1)
+		opt.Page = resp.NextPage
+		go listWorkflowRuns(h, repository, opt, desc, withLastWorkflowRuns, withFileContent, wg, data)
+	}
+}
+
 type ProjectPipelineSchedule struct {
 	Project   *gitlab.Project          `json:"project,omitempty"`
 	Schedule  *gitlab.PipelineSchedule `json:"schedule,omitempty"`
 	Pipelines []*gitlab.Pipeline       `json:"pipelines,omitempty"`
+}
+
+type RepositoryWorkflow struct {
+	Repository          *github.Repository        `json:"repository,omitempty"`
+	Workflow            *github.Workflow          `json:"workflow,omitempty"`
+	WorkflowRuns        *github.WorkflowRuns      `json:"workflow_runs,omitempty"`
+	WorkflowFileContent *github.RepositoryContent `json:"workflow_file_content,omitempty"`
 }
 
 type Schedules []*gitlab.PipelineSchedule
@@ -716,6 +830,10 @@ func (a Schedules) Descriptions() string {
 func ListPipelineSchedules(h *client.Host, project *gitlab.Project, opt gitlab.ListPipelineSchedulesOptions,
 	desc []*regexp.Regexp, withLastPipelines bool, wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 	listPipelineSchedules(h, project, opt, desc, withLastPipelines, wg, data, options...)
+}
+func ListWorkflowRuns(h *client.Host, repository *github.Repository, opt github.ListOptions,
+	desc []*regexp.Regexp, withLastPipelines int, withFileContent bool, wg *limiter.Limiter, data chan<- interface{}) {
+	listWorkflowRuns(h, repository, opt, desc, withLastPipelines, withFileContent, wg, data)
 }
 
 func takeOwnership(h *client.Host, schedule ProjectPipelineSchedule,

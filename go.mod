@@ -6,6 +6,8 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/ahmetb/go-linq v3.0.0+incompatible
 	github.com/alecthomas/units v0.0.0-20231202071711-9a357b53e9c9
+	github.com/gofri/go-github-ratelimit v1.1.0
+	github.com/google/go-github/v58 v58.0.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-hclog v1.6.2
@@ -14,7 +16,7 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
-	github.com/xanzy/go-gitlab v0.95.2
+	github.com/xanzy/go-gitlab v0.96.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -40,7 +42,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/exp v0.0.0-20240110193028-0dcbfd608b1e // indirect
+	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
