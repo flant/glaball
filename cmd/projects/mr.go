@@ -216,6 +216,11 @@ func listProjectsByNamespace(h *client.Host, namespaces []string, opt gitlab.Lis
 	return nil
 }
 
+func ListProjectsByNamespace(h *client.Host, namespaces []string, opt gitlab.ListProjectsOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
+	return listProjectsByNamespace(h, namespaces, opt, wg, data, options...)
+}
+
 func listRepositories(h *client.Host, archived bool, opt github.RepositoryListByOrgOptions,
 	wg *limiter.Limiter, data chan<- interface{}) error {
 	defer wg.Done()
@@ -245,14 +250,43 @@ func listRepositories(h *client.Host, archived bool, opt github.RepositoryListBy
 	return nil
 }
 
-func ListProjectsByNamespace(h *client.Host, namespaces []string, opt gitlab.ListProjectsOptions,
-	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) error {
-	return listProjectsByNamespace(h, namespaces, opt, wg, data, options...)
-}
-
 func ListRepositories(h *client.Host, archived bool, opt github.RepositoryListByOrgOptions,
 	wg *limiter.Limiter, data chan<- interface{}) error {
 	return listRepositories(h, archived, opt, wg, data)
+}
+
+func listRepositoriesByNamespace(h *client.Host, namespaces []string, archived bool, opt github.RepositoryListByOrgOptions,
+	wg *limiter.Limiter, data chan<- interface{}) error {
+	defer wg.Done()
+
+	ctx := context.TODO()
+	wg.Lock()
+	list, resp, err := h.GithubClient.Repositories.ListByOrg(ctx, h.Org, &opt)
+	if err != nil {
+		wg.Error(h, err)
+		wg.Unlock()
+		return err
+	}
+	wg.Unlock()
+
+	for _, v := range list {
+		if v.GetArchived() == archived && (len(namespaces) == 0 || util.ContainsString(namespaces, v.GetName())) {
+			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+		}
+	}
+
+	if resp.NextPage > 0 {
+		wg.Add(1)
+		opt.Page = resp.NextPage
+		go listRepositoriesByNamespace(h, namespaces, archived, opt, wg, data)
+	}
+
+	return nil
+}
+
+func ListRepositoriesByNamespace(h *client.Host, namespaces []string, archived bool, opt github.RepositoryListByOrgOptions,
+	wg *limiter.Limiter, data chan<- interface{}) error {
+	return listRepositoriesByNamespace(h, namespaces, archived, opt, wg, data)
 }
 
 func listMergeRequests(h *client.Host, project *gitlab.Project, opt gitlab.ListProjectMergeRequestsOptions,
