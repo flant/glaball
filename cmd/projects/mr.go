@@ -166,6 +166,10 @@ func MergeRequestsListCmd() error {
 				if mr.Author == nil {
 					mr.Author = &gitlab.BasicUser{Username: "-"}
 				}
+				if !common.Config.ShowAll && len(mr.Title) > 64 {
+					mr.Title = mr.Title[:64] + "..."
+				}
+
 				fmt.Fprintf(w, "[%s]\t%s\t%s\t[%s]\t%s\n", elem.Host.Project, mr.Title, mr.WebURL, mr.Author.Username, mr.UpdatedAt.Format("2006-01-02 15:04:05"))
 			}
 		}
