@@ -145,6 +145,9 @@ func MergeRequestsListCmd() error {
 		for _, v := range results {
 			for _, elem := range v.Elements.Typed() {
 				mr := elem.Struct.(*gitlab.MergeRequest)
+				if mr.Author == nil {
+					mr.Author = &gitlab.BasicUser{Username: "-"}
+				}
 				w.Write([]string{elem.Host.Project, mr.WebURL, mr.Title, mr.Author.Username, mr.UpdatedAt.Format("2006-01-02 15:04:05")})
 			}
 		}
@@ -160,6 +163,9 @@ func MergeRequestsListCmd() error {
 			for _, elem := range v.Elements.Typed() {
 				total++
 				mr := elem.Struct.(*gitlab.MergeRequest)
+				if mr.Author == nil {
+					mr.Author = &gitlab.BasicUser{Username: "-"}
+				}
 				fmt.Fprintf(w, "[%s]\t%s\t%s\t[%s]\t%s\n", elem.Host.Project, mr.Title, mr.WebURL, mr.Author.Username, mr.UpdatedAt.Format("2006-01-02 15:04:05"))
 			}
 		}
