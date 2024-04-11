@@ -145,6 +145,9 @@ func MergeRequestsListCmd() error {
 		for _, v := range results {
 			for _, elem := range v.Elements.Typed() {
 				mr := elem.Struct.(*gitlab.MergeRequest)
+				if mr.Author == nil {
+					mr.Author = &gitlab.BasicUser{Username: "-"}
+				}
 				w.Write([]string{elem.Host.Project, mr.WebURL, mr.Title, mr.Author.Username, mr.UpdatedAt.Format("2006-01-02 15:04:05")})
 			}
 		}
@@ -153,14 +156,21 @@ func MergeRequestsListCmd() error {
 
 	if util.ContainsString(outputFormat, "table") {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.TabIndent)
-		fmt.Fprintf(w, "HOST\tURL\tAuthor\tLast Updated\n")
+		fmt.Fprintf(w, "HOST\tTitle\tURL\tAuthor\tLast Updated\n")
 		total := 0
 
 		for _, v := range results {
 			for _, elem := range v.Elements.Typed() {
 				total++
 				mr := elem.Struct.(*gitlab.MergeRequest)
-				fmt.Fprintf(w, "[%s]\t%s\t[%s]\t%s\n", elem.Host.Project, mr.WebURL, mr.Author.Username, mr.UpdatedAt.Format("2006-01-02 15:04:05"))
+				if mr.Author == nil {
+					mr.Author = &gitlab.BasicUser{Username: "-"}
+				}
+				if !common.Config.ShowAll && len(mr.Title) > 64 {
+					mr.Title = mr.Title[:64] + "..."
+				}
+
+				fmt.Fprintf(w, "[%s]\t%s\t%s\t[%s]\t%s\n", elem.Host.Project, mr.Title, mr.WebURL, mr.Author.Username, mr.UpdatedAt.Format("2006-01-02 15:04:05"))
 			}
 		}
 
