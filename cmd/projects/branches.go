@@ -11,7 +11,7 @@ import (
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
-	"github.com/google/go-github/v58/github"
+	"github.com/google/go-github/v56/github"
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"
@@ -77,6 +77,16 @@ func NewBranchesListCmd() *cobra.Command {
 	listProjectsOptionsFlags(cmd, &listProjectsOptions)
 
 	return cmd
+}
+
+type ProjectBranch struct {
+	Project  *gitlab.Project  `json:"project,omitempty"`
+	Branches []*gitlab.Branch `json:"branch,omitempty"`
+}
+
+type RepositoryBranch struct {
+	Repository *github.Repository `json:"repository,omitempty"`
+	Branch     *github.Branch     `json:"branch,omitempty"`
 }
 
 func BranchesListCmd() error {
@@ -201,14 +211,4 @@ func listBranches(h *client.Host, project *gitlab.Project, opt gitlab.ListBranch
 	}
 
 	return nil
-}
-
-type ProjectBranch struct {
-	Project  *gitlab.Project  `json:"project,omitempty"`
-	Branches []*gitlab.Branch `json:"branch,omitempty"`
-}
-
-type RepositoryBranch struct {
-	Repository *github.Repository `json:"repository,omitempty"`
-	Branch     *github.Branch     `json:"branch,omitempty"`
 }
