@@ -20,7 +20,7 @@ jobs:
 
     - name: Build
       run: |
-        versionflags="-X 'github.com/perhamm/glaball/pkg/util.Version=$GITHUB_REF_NAME' -X 'github.com/perhamm/glaball/pkg/util.Revision=$GITHUB_SHA' -X 'github.com/perhamm/glaball/pkg/util.Branch=$GITHUB_REF_NAME' -X 'github.com/perhamm/glaball/pkg/util.BuildUser=$GITHUB_ACTOR' -X 'github.com/perhamm/glaball/pkg/util.BuildDate=$(date +%Y%m%d%H%M)'"
+        versionflags="-X 'github.com/flant/glaball/pkg/util.Version=$GITHUB_REF_NAME' -X 'github.com/flant/glaball/pkg/util.Revision=$GITHUB_SHA' -X 'github.com/flant/glaball/pkg/util.Branch=$GITHUB_REF_NAME' -X 'github.com/flant/glaball/pkg/util.BuildUser=$GITHUB_ACTOR' -X 'github.com/flant/glaball/pkg/util.BuildDate=$(date +%Y%m%d%H%M)'"
         for GOOS in darwin linux windows; do
           for GOARCH in amd64 arm64; do
             export GOOS GOARCH

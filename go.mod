@@ -1,4 +1,4 @@
-module github.com/perhamm/glaball
+module github.com/flant/glaball
 
 go 1.23
 

@@ -3,7 +3,7 @@ package sort
 import (
 	"fmt"
 
-	"github.com/perhamm/glaball/pkg/client"
+	"github.com/flant/glaball/pkg/client"
 
 	"github.com/ahmetb/go-linq"
 )

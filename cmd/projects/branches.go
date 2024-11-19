@@ -7,13 +7,13 @@ import (
 	"text/tabwriter"
 
 	"dario.cat/mergo"
+	"github.com/flant/glaball/cmd/common"
+	"github.com/flant/glaball/pkg/client"
+	"github.com/flant/glaball/pkg/limiter"
+	"github.com/flant/glaball/pkg/sort/v2"
+	"github.com/flant/glaball/pkg/util"
 	"github.com/google/go-github/v66/github"
 	"github.com/hashicorp/go-hclog"
-	"github.com/perhamm/glaball/cmd/common"
-	"github.com/perhamm/glaball/pkg/client"
-	"github.com/perhamm/glaball/pkg/limiter"
-	"github.com/perhamm/glaball/pkg/sort/v2"
-	"github.com/perhamm/glaball/pkg/util"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"
 )

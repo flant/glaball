@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/ahmetb/go-linq"
+	"github.com/flant/glaball/pkg/client"
 	"github.com/jmoiron/sqlx/reflectx"
-	"github.com/perhamm/glaball/pkg/client"
 )
 
 var (
