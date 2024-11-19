@@ -358,7 +358,7 @@ func listProjects(h *client.Host, opt gitlab.ListProjectsOptions, wg *limiter.Li
 	// TODO:
 	if h.GithubClient != nil {
 		ctx := context.TODO()
-		list, resp, err := h.GithubClient.Repositories.ListByOrg(ctx, h.Org,
+		list, resp, err := h.GithubClient.Repositories.ListByOrg(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org,
 			&github.RepositoryListByOrgOptions{ListOptions: github.ListOptions{PerPage: 100}},
 		)
 		if err != nil {

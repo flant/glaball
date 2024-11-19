@@ -693,7 +693,7 @@ func listWorkflowRuns(h *client.Host, repository *github.Repository, opt github.
 
 	ctx := context.TODO()
 	wg.Lock()
-	list, resp, err := h.GithubClient.Actions.ListWorkflows(ctx, h.Org, repository.GetName(), &opt)
+	list, resp, err := h.GithubClient.Actions.ListWorkflows(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, repository.GetName(), &opt)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()
@@ -727,7 +727,7 @@ filter:
 			if withLastWorkflowRuns > 0 {
 				// get last workflow runs
 				wg.Lock()
-				runs, _, err = h.GithubClient.Actions.ListWorkflowRunsByID(ctx,
+				runs, _, err = h.GithubClient.Actions.ListWorkflowRunsByID(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true),
 					h.Org,
 					repository.GetName(),
 					v.GetID(),
@@ -764,7 +764,7 @@ filter:
 			var fileContent *github.RepositoryContent
 			if withFileContent {
 				wg.Lock()
-				fileContent, _, _, err = h.GithubClient.Repositories.GetContents(ctx,
+				fileContent, _, _, err = h.GithubClient.Repositories.GetContents(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true),
 					repository.Owner.GetLogin(),
 					repository.GetName(),
 					v.GetPath(),

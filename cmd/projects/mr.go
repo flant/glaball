@@ -217,7 +217,7 @@ func listRepositories(h *client.Host, archived bool, opt github.RepositoryListBy
 
 	ctx := context.TODO()
 	wg.Lock()
-	list, resp, err := h.GithubClient.Repositories.ListByOrg(ctx, h.Org, &opt)
+	list, resp, err := h.GithubClient.Repositories.ListByOrg(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, &opt)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()
@@ -251,7 +251,7 @@ func listRepositoriesByNamespace(h *client.Host, namespaces []string, archived b
 
 	ctx := context.TODO()
 	wg.Lock()
-	list, resp, err := h.GithubClient.Repositories.ListByOrg(ctx, h.Org, &opt)
+	list, resp, err := h.GithubClient.Repositories.ListByOrg(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, &opt)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()
@@ -426,7 +426,7 @@ func listPullRequestsByAssigneeOrAuthorID(h *client.Host, repository *github.Rep
 
 	ctx := context.TODO()
 	wg.Lock()
-	list, resp, err := h.GithubClient.PullRequests.List(ctx, h.Org, repository.GetName(), &opt)
+	list, resp, err := h.GithubClient.PullRequests.List(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, repository.GetName(), &opt)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()
@@ -481,7 +481,7 @@ func listPullRequests(h *client.Host, repository *github.Repository, opt github.
 
 	ctx := context.TODO()
 	wg.Lock()
-	list, resp, err := h.GithubClient.PullRequests.List(ctx, h.Org, repository.GetName(), &opt)
+	list, resp, err := h.GithubClient.PullRequests.List(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, repository.GetName(), &opt)
 	if err != nil {
 		wg.Error(h, err)
 		wg.Unlock()
