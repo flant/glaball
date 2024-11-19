@@ -13,7 +13,7 @@ import (
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
-	"github.com/google/go-github/v58/github"
+	"github.com/google/go-github/v66/github"
 
 	"github.com/flant/glaball/cmd/common"
 
@@ -350,7 +350,7 @@ func listProjects(h *client.Host, opt gitlab.ListProjectsOptions, wg *limiter.Li
 	// TODO:
 	if h.GithubClient != nil {
 		ctx := context.TODO()
-		list, resp, err := h.GithubClient.Repositories.ListByOrg(ctx, h.Org,
+		list, resp, err := h.GithubClient.Repositories.ListByOrg(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org,
 			&github.RepositoryListByOrgOptions{ListOptions: github.ListOptions{PerPage: 100}},
 		)
 		if err != nil {

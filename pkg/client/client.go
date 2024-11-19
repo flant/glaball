@@ -12,7 +12,7 @@ import (
 	"github.com/flant/glaball/pkg/config"
 	"github.com/flant/glaball/pkg/util"
 	"github.com/gofri/go-github-ratelimit/github_ratelimit"
-	"github.com/google/go-github/v58/github"
+	"github.com/google/go-github/v66/github"
 	"github.com/gregjones/httpcache"
 
 	"github.com/ahmetb/go-linq"
