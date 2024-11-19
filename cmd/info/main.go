@@ -3,8 +3,8 @@ package info
 import (
 	"fmt"
 
-	"github.com/flant/glaball/pkg/config"
-	"github.com/flant/glaball/pkg/util"
+	"github.com/perhamm/glaball/pkg/config"
+	"github.com/perhamm/glaball/pkg/util"
 
 	"github.com/spf13/cobra"
 )

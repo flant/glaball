@@ -3,7 +3,7 @@ package cache
 import (
 	"fmt"
 
-	"github.com/flant/glaball/cmd/common"
+	"github.com/perhamm/glaball/cmd/common"
 
 	"github.com/spf13/cobra"
 )

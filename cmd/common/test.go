@@ -5,9 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/flant/glaball/pkg/client"
-	"github.com/flant/glaball/pkg/config"
-	"github.com/flant/glaball/pkg/limiter"
+	"github.com/perhamm/glaball/pkg/client"
+	"github.com/perhamm/glaball/pkg/config"
+	"github.com/perhamm/glaball/pkg/limiter"
 )
 
 // Setup sets up a test HTTP server along with a gitlab.Client that is

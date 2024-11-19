@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flant/glaball/pkg/config"
-	"github.com/flant/glaball/pkg/util"
 	"github.com/gofri/go-github-ratelimit/github_ratelimit"
 	"github.com/google/go-github/v66/github"
 	"github.com/gregjones/httpcache"
+	"github.com/perhamm/glaball/pkg/config"
+	"github.com/perhamm/glaball/pkg/util"
 
 	"github.com/ahmetb/go-linq"
 	"github.com/hashicorp/go-cleanhttp"
