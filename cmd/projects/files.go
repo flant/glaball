@@ -13,7 +13,7 @@ import (
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
-	"github.com/google/go-github/v58/github"
+	"github.com/google/go-github/v66/github"
 	"gopkg.in/yaml.v3"
 
 	"github.com/flant/glaball/cmd/common"
@@ -239,7 +239,7 @@ func listProjectsFilesFromGithub(h *client.Host, filepath, ref string, re []*reg
 
 	ctx := context.TODO()
 	wg.Lock()
-	list, resp, err := h.GithubClient.Repositories.ListByOrg(ctx, h.Org, &opt)
+	list, resp, err := h.GithubClient.Repositories.ListByOrg(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, &opt)
 	if err != nil {
 		if err != nil {
 			wg.Error(h, err)
@@ -304,7 +304,7 @@ func getRawFileFromGithub(h *client.Host, repository *github.Repository, filepat
 	// TODO:
 	ctx := context.TODO()
 	wg.Lock()
-	fileContent, _, resp, err := h.GithubClient.Repositories.GetContents(ctx,
+	fileContent, _, resp, err := h.GithubClient.Repositories.GetContents(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true),
 		repository.Owner.GetLogin(),
 		repository.GetName(),
 		filepath,
