@@ -81,7 +81,7 @@ func NewBranchesListCmd() *cobra.Command {
 
 type ProjectBranch struct {
 	Project  *gitlab.Project  `json:"project,omitempty"`
-	Branches []*gitlab.Branch `json:"branch,omitempty"`
+	Branches []*gitlab.Branch `json:"branches,omitempty"`
 }
 
 type RepositoryBranch struct {
