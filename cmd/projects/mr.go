@@ -11,7 +11,7 @@ import (
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
-	"github.com/google/go-github/v58/github"
+	"github.com/google/go-github/v66/github"
 
 	"github.com/flant/glaball/cmd/common"
 

@@ -12,7 +12,7 @@ import (
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
-	"github.com/google/go-github/v58/github"
+	"github.com/google/go-github/v66/github"
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"

@@ -13,7 +13,7 @@ import (
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
-	"github.com/google/go-github/v58/github"
+	"github.com/google/go-github/v66/github"
 	"gopkg.in/yaml.v3"
 
 	"github.com/flant/glaball/cmd/common"
