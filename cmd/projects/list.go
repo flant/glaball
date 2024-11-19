@@ -33,9 +33,9 @@ func NewListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List projects.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// if len(orderBy) == 0 {
-			// 	orderBy = []string{"count", projectDefaultField}
-			// }
+			if len(orderBy) == 0 {
+				orderBy = []string{"count", projectDefaultField}
+			}
 			return List()
 		},
 	}
@@ -62,8 +62,7 @@ func NewLanguagesCmd() *cobra.Command {
 		Short: "List projects with languages.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(orderBy) == 0 {
-				//orderBy = []string{"count", projectWithLanguagesDefaultField}
-				orderBy = []string{"count", "html_url"}
+				orderBy = []string{"count", projectWithLanguagesDefaultField}
 			}
 			return ListWithLanguages()
 		},
@@ -151,11 +150,8 @@ Available in GitLab Premium self-managed, GitLab Premium SaaS, and higher tiers.
 }
 
 func List() error {
-	// if !sort.ValidOrderBy(orderBy, gitlab.Project{}) {
-	// 	orderBy = append(orderBy, projectDefaultField)
-	// }
-	if !sort.ValidOrderBy(orderBy, github.Repository{}) {
-		orderBy = append(orderBy, "html_url")
+	if !sort.ValidOrderBy(orderBy, gitlab.Project{}) {
+		orderBy = append(orderBy, projectDefaultField)
 	}
 
 	wg := common.Limiter
@@ -174,11 +170,10 @@ func List() error {
 	}()
 
 	results, err := sort.FromChannel(data, &sort.Options{
-		OrderBy: orderBy,
-		SortBy:  sortBy,
-		GroupBy: groupBy,
-		// StructType: gitlab.Project{},
-		StructType: github.Repository{},
+		OrderBy:    orderBy,
+		SortBy:     sortBy,
+		GroupBy:    groupBy,
+		StructType: gitlab.Project{},
 	})
 	if err != nil {
 		return err
@@ -192,9 +187,6 @@ func List() error {
 	for _, v := range results {
 		unique++         // todo
 		total += v.Count //todo
-		// for _, r := range v.Elements.Typed() {
-		// 	fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, *r.Struct.(*github.Repository).HTMLURL, v.Elements.Hosts().Projects(common.Config.ShowAll), v.Cached)
-		// }
 		fmt.Fprintf(w, "[%d]\t%s\t%s\t[%s]\n", v.Count, v.Key, v.Elements.Hosts().Projects(common.Config.ShowAll), v.Cached)
 	}
 
