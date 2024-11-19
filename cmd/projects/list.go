@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
 	"github.com/flant/glaball/pkg/util"
+	"github.com/google/go-github/v58/github"
 
 	"github.com/flant/glaball/cmd/common"
 
@@ -345,6 +347,31 @@ func listProjects(h *client.Host, opt gitlab.ListProjectsOptions, wg *limiter.Li
 
 	defer wg.Done()
 
+	// TODO:
+	if h.GithubClient != nil {
+		ctx := context.TODO()
+		list, resp, err := h.GithubClient.Repositories.ListByOrg(ctx, h.Org,
+			&github.RepositoryListByOrgOptions{ListOptions: github.ListOptions{PerPage: 100}},
+		)
+		if err != nil {
+			wg.Error(h, err)
+			return err
+		}
+
+		for _, v := range list {
+			data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}
+		}
+
+		if resp.NextPage > 0 {
+			wg.Add(1)
+			opt.Page = resp.NextPage
+			go listProjects(h, opt, wg, data, options...)
+		}
+
+		return nil
+
+	}
+
 	wg.Lock()
 
 	list, resp, err := h.Client.Projects.ListProjects(&opt, options...)
@@ -354,7 +381,7 @@ func listProjects(h *client.Host, opt gitlab.ListProjectsOptions, wg *limiter.Li
 		return err
 	}
 
-	wg.Unlock()
+	wg.Unlock() // TODO: ratelimiter
 
 	for _, v := range list {
 		data <- sort.Element{Host: h, Struct: v, Cached: resp.Header.Get("X-From-Cache") == "1"}

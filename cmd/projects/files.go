@@ -3,6 +3,7 @@ package projects
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
+	"github.com/google/go-github/v58/github"
 	"gopkg.in/yaml.v3"
 
 	"github.com/flant/glaball/cmd/common"
@@ -230,6 +232,38 @@ func listProjectsFiles(h *client.Host, filepath, ref string, re []*regexp.Regexp
 	}
 }
 
+func listProjectsFilesFromGithub(h *client.Host, filepath, ref string, re []*regexp.Regexp, opt github.RepositoryListByOrgOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
+
+	defer wg.Done()
+
+	ctx := context.TODO()
+	wg.Lock()
+	list, resp, err := h.GithubClient.Repositories.ListByOrg(ctx, h.Org, &opt)
+	if err != nil {
+		if err != nil {
+			wg.Error(h, err)
+			wg.Unlock()
+			return
+		}
+	}
+	wg.Unlock()
+
+	for _, v := range list {
+		wg.Add(1)
+		// TODO: handle deadlock when no files found
+		go getRawFileFromGithub(h, v, filepath, ref, re, wg, data)
+	}
+
+	if resp.NextPage > 0 {
+		wg.Add(1)
+		opt.Page = resp.NextPage
+		go listProjectsFilesFromGithub(h, filepath, ref, re, opt, wg, data, options...)
+	}
+
+	return
+}
+
 func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, re []*regexp.Regexp,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 
@@ -252,6 +286,46 @@ func getRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, r
 			data <- sort.Element{Host: h, Struct: &ProjectFile{Project: project, Raw: raw}, Cached: resp.Header.Get("X-From-Cache") == "1"}
 			hclog.L().Named("files").Trace("search pattern was found in file", "team", h.Team, "project", h.Project, "host", h.URL,
 				"repo", project.WebURL, "file", filepath, "pattern", r.String(), "content", hclog.Fmt("%s", raw))
+			return
+		}
+	}
+}
+
+// TODO:
+func getRawFileFromGithub(h *client.Host, repository *github.Repository, filepath, ref string, re []*regexp.Regexp,
+	wg *limiter.Limiter, data chan<- interface{}) {
+
+	defer wg.Done()
+
+	targetRef := ref
+	if ref == "" {
+		targetRef = repository.GetDefaultBranch()
+	}
+	// TODO:
+	ctx := context.TODO()
+	wg.Lock()
+	fileContent, _, resp, err := h.GithubClient.Repositories.GetContents(ctx,
+		repository.Owner.GetLogin(),
+		repository.GetName(),
+		filepath,
+		&github.RepositoryContentGetOptions{Ref: targetRef})
+	wg.Unlock()
+	if err != nil {
+		hclog.L().Named("files").Trace("get raw file error", "repository", repository.GetHTMLURL(), "error", err)
+		return
+	}
+
+	raw, err := fileContent.GetContent()
+	if err != nil {
+		hclog.L().Named("files").Trace("get raw file error", "repository", repository.GetHTMLURL(), "error", err)
+		return
+	}
+
+	for _, r := range re {
+		if r.MatchString(raw) {
+			data <- sort.Element{Host: h, Struct: &RepositoryFile{Repository: repository, Raw: raw}, Cached: resp.Header.Get("X-From-Cache") == "1"}
+			hclog.L().Named("files").Trace("search pattern was found in file", "team", h.Team, "repository", h.Project, "host", h.URL,
+				"repo", repository.GetHTMLURL(), "file", filepath, "pattern", r.String(), "content", hclog.Fmt("%s", raw))
 			return
 		}
 	}
@@ -298,6 +372,11 @@ func getGitlabCIFile(h *client.Host, check bool, project *gitlab.Project, re []*
 type ProjectFile struct {
 	Project *gitlab.Project `json:"project,omitempty"`
 	Raw     []byte
+}
+
+type RepositoryFile struct {
+	Repository *github.Repository `json:"repository,omitempty"`
+	Raw        string
 }
 
 type ProjectLintResult struct {
@@ -398,7 +477,17 @@ func ListProjectsFiles(h *client.Host, filepath, ref string, re []*regexp.Regexp
 	listProjectsFiles(h, filepath, ref, re, opt, wg, data, options...)
 }
 
+func ListProjectsFilesFromGithub(h *client.Host, filepath, ref string, re []*regexp.Regexp, opt github.RepositoryListByOrgOptions,
+	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
+	listProjectsFilesFromGithub(h, filepath, ref, re, opt, wg, data, options...)
+}
+
 func GetRawFile(h *client.Host, project *gitlab.Project, filepath, ref string, re []*regexp.Regexp,
 	wg *limiter.Limiter, data chan<- interface{}, options ...gitlab.RequestOptionFunc) {
 	getRawFile(h, project, filepath, ref, re, wg, data, options...)
+}
+
+func GetRawFileFromGithub(h *client.Host, repository *github.Repository, filepath, ref string, re []*regexp.Regexp,
+	wg *limiter.Limiter, data chan<- interface{}) {
+	getRawFileFromGithub(h, repository, filepath, ref, re, wg, data)
 }

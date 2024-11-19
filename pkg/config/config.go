@@ -26,7 +26,21 @@ type Host struct {
 	URL         string             `yaml:"url" mapstructure:"url"`
 	IP          string             `yaml:"ip" mapstructure:"ip"`
 	Token       string             `yaml:"token" mapstructure:"token"`
+	Type        string             `yaml:"type" mapstructure:"type"`
+	Org         string             `yaml:"org" mapstructure:"org"`
 	RateLimiter RateLimiterOptions `yaml:"rate_limiter" mapstructure:"rate_limiter"`
+}
+
+// TODO:
+type GitlabHost struct {
+	URL   string `yaml:"url" mapstructure:"url"`
+	Token string `yaml:"token" mapstructure:"token"`
+}
+
+// TODO:
+type GithubHost struct {
+	Org   string `yaml:"org" mapstructure:"org"`
+	Token string `yaml:"token" mapstructure:"token"`
 }
 
 type RateLimiterOptions struct {
