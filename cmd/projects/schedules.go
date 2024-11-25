@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	go_sort "sort"
 
@@ -691,7 +692,8 @@ func listWorkflowRuns(h *client.Host, repository *github.Repository, opt github.
 
 	defer wg.Done()
 
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 	wg.Lock()
 	list, resp, err := h.GithubClient.Actions.ListWorkflows(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, repository.GetName(), &opt)
 	if err != nil {

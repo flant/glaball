@@ -8,6 +8,7 @@ import (
 	go_sort "sort"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
@@ -349,7 +350,8 @@ func listProjects(h *client.Host, opt gitlab.ListProjectsOptions, wg *limiter.Li
 
 	// TODO:
 	if h.GithubClient != nil {
-		ctx := context.TODO()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
 		list, resp, err := h.GithubClient.Repositories.ListByOrg(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org,
 			&github.RepositoryListByOrgOptions{ListOptions: github.ListOptions{PerPage: 100}},
 		)

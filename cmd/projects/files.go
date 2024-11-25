@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/flant/glaball/pkg/client"
 	"github.com/flant/glaball/pkg/limiter"
@@ -237,7 +238,8 @@ func listProjectsFilesFromGithub(h *client.Host, filepath, ref string, re []*reg
 
 	defer wg.Done()
 
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 	wg.Lock()
 	list, resp, err := h.GithubClient.Repositories.ListByOrg(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, &opt)
 	if err != nil {
@@ -302,7 +304,8 @@ func getRawFileFromGithub(h *client.Host, repository *github.Repository, filepat
 		targetRef = repository.GetDefaultBranch()
 	}
 	// TODO:
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 	wg.Lock()
 	fileContent, _, resp, err := h.GithubClient.Repositories.GetContents(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true),
 		repository.Owner.GetLogin(),

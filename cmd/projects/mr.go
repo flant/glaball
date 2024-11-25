@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"text/tabwriter"
+	"time"
 
 	"github.com/flant/glaball/pkg/limiter"
 	"github.com/flant/glaball/pkg/sort/v2"
@@ -225,7 +226,8 @@ func listRepositories(h *client.Host, archived bool, opt github.RepositoryListBy
 	wg *limiter.Limiter, data chan<- interface{}) error {
 	defer wg.Done()
 
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 	wg.Lock()
 	list, resp, err := h.GithubClient.Repositories.ListByOrg(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, &opt)
 	if err != nil {
@@ -259,7 +261,8 @@ func listRepositoriesByNamespace(h *client.Host, namespaces []string, archived b
 	wg *limiter.Limiter, data chan<- interface{}) error {
 	defer wg.Done()
 
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 	wg.Lock()
 	list, resp, err := h.GithubClient.Repositories.ListByOrg(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, &opt)
 	if err != nil {
@@ -434,7 +437,8 @@ func listPullRequestsByAssigneeOrAuthorID(h *client.Host, repository *github.Rep
 	opt github.PullRequestListOptions, wg *limiter.Limiter, data chan<- interface{}) error {
 	defer wg.Done()
 
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 	wg.Lock()
 	list, resp, err := h.GithubClient.PullRequests.List(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, repository.GetName(), &opt)
 	if err != nil {
@@ -489,7 +493,8 @@ func listPullRequests(h *client.Host, repository *github.Repository, opt github.
 	wg *limiter.Limiter, data chan<- interface{}) error {
 	defer wg.Done()
 
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 	wg.Lock()
 	list, resp, err := h.GithubClient.PullRequests.List(context.WithValue(ctx, github.SleepUntilPrimaryRateLimitResetWhenRateLimited, true), h.Org, repository.GetName(), &opt)
 	if err != nil {
